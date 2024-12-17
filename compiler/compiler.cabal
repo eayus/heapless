@@ -15,10 +15,12 @@ library
     import: config
     hs-source-dirs: src
     exposed-modules:
+        Core.Norm.Eval,
+        Core.Norm.Reify,
+        Core.Norm.Value,
         Core.Parse,
         Core.Syntax,
         Core.Term,
-        Core.Value,
     build-depends:
         megaparsec,
         parser-combinators,

@@ -1,7 +1,7 @@
 -- Semantic values for the core language. The types are almost identical to the type annotated
 -- terms, except that closures are used when expressions are bound. Unlike other presentations
 -- of semantic values, we do not separate normal and neutral forms for simplicity.
-module Core.Value where
+module Core.Norm.Value where
 
 import Core.Syntax (Kind, Mult)
 import Core.Term (Prim, PrimType)
