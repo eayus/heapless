@@ -1,0 +1,4 @@
+λ w0.
+    let 1 p = (w0, True);
+    let 1 (w1, b) = p;
+    printInt 0 w1

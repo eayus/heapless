@@ -1,0 +1,39 @@
+cabal-version:      3.4
+name:               compiler
+version:            0.1.0.0
+
+common config
+    ghc-options: -W
+    default-language: GHC2021
+    default-extensions:
+        LambdaCase,
+    build-depends:
+        base,
+        mtl,
+
+library
+    import: config
+    hs-source-dirs: src
+    exposed-modules:
+        Core.Parse,
+        Core.Syntax,
+    build-depends:
+        megaparsec,
+        parser-combinators,
+
+executable compiler
+    import: config
+    hs-source-dirs: app
+    main-is: Main.hs
+    build-depends:
+        compiler,
+
+test-suite test
+    import: config
+    hs-source-dirs: test
+    main-is: Main.hs
+    type: exitcode-stdio-1.0
+    build-depends:
+        compiler,
+        directory,
+        HUnit,
