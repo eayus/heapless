@@ -8,7 +8,7 @@ data PrimType
   = TInt
   | TBool
   | TWorld
-  deriving (Eq)
+  deriving (Eq, Show)
 
 -- Types.
 data Type
@@ -17,7 +17,7 @@ data Type
   | TFunc Mult Type Type -- Function types.
   | TProd Mult Type Mult Type -- Product types, each side with its multiplicity.
   | TForall Kind Type -- Universal quantification.
-  deriving (Eq)
+  deriving (Eq, Show)
 
 -- Primitive operations.
 data Prim e

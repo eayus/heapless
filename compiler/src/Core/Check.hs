@@ -40,7 +40,19 @@ instance Monoid Uses where
 useVar :: S.Ident -> TC ()
 useVar x = tell $ Uses $ M.singleton x S.One
 
--- typecheck :: S.Expr -> ExceptT 
+-- TODO: Can we change the monad stack order to avoid rewrapping the ExceptT.
+typecheck :: (MonadError String m) => S.Expr -> m T.Expr
+typecheck t = do
+  let x = runExceptT (checkExpr t mainType)
+  let y = runWriterT x
+  let (z, _) = runReader y initCtxt
+  liftEither z
+
+mainType :: V.Type
+mainType = V.TFunc S.One (V.TPrim T.TWorld) (V.TPrim T.TWorld)
+
+initCtxt :: Ctxt
+initCtxt = Ctxt [] []
 
 inferExpr :: S.Expr -> TC (V.Type, T.Expr)
 inferExpr = \case
@@ -88,7 +100,7 @@ inferExpr = \case
         a'' <- reifyType va'
         pure (b, T.ELetPair q a'' t' u')
       _ -> throwError "Can't use pair pattern for non product type"
-  S.EPair {} -> throwError "Can't infer the type for a pair"
+  t@(S.EPair {}) -> throwError $ "Can't infer the type for the pair " ++ show t
   S.EBin op t u -> case op of
     S.Add -> do
       t' <- checkExpr t $ V.TPrim T.TInt
@@ -133,16 +145,24 @@ checkExpr = \case
       t' <- bindType x k $ checkExpr t $ f $ V.TVar len
       pure $ T.ETyLam t'
     _ -> throwError "Type abstractions can only have polymorphic types"
+  S.EPair t u -> \case
+    V.TProd q a p b -> do
+      t' <- multiplyUses q $ checkExpr t a
+      u' <- multiplyUses p $ checkExpr u b
+      pure $ T.EPair t' u'
+    _ -> throwError "Pairs must have product types"
   t -> \a -> do
     (b, t') <- inferExpr t
-    ensureEqual a b
+    withExceptT (("When checking the term " ++ show t ++ "\n") ++) $ ensureEqual a b
     pure t'
 
 ensureEqual :: V.Type -> V.Type -> TC ()
 ensureEqual a b = do
   a' <- reifyType a
   b' <- reifyType b
-  unless (a' == b') $ throwError "Type mismatch"
+  ctxt <- asks exprVars
+  ctxt' <- mapM (mapM reifyType) ctxt
+  unless (a' == b') $ throwError $ "In the context: " ++ show ctxt' ++ "\nType mismatch between " ++ show a' ++ " and " ++ show b'
 
 tryCheckExpr :: S.Expr -> Maybe V.Type -> TC (V.Type, T.Expr)
 tryCheckExpr t = \case
@@ -153,6 +173,7 @@ tryCheckExpr t = \case
 
 inferType :: S.Type -> TC (S.Kind, T.Type)
 inferType = \case
+  S.TName x | Just p <- isPrimType x -> pure (S.KStar 0, T.TPrim p)
   S.TName x -> do
     vars <- asks typeVars
     (k, l) <- lookupVar x vars
@@ -160,7 +181,7 @@ inferType = \case
   S.TFunc q a b -> do
     (ka, a') <- inferType a
     (kb, b') <- inferType b
-    pure (maximum [succ ka, kb, S.KStar 3], T.TFunc q a' b')
+    pure (min (max (succ ka) kb) (S.KStar 3), T.TFunc q a' b')
   S.TProd q a p b -> do
     -- TODO: For now, only basic types can appear in pairs, but this restriction can be lifted.
     a' <- checkType a $ S.KStar 1
@@ -170,11 +191,17 @@ inferType = \case
     (_, a') <- bindType x k $ inferType a
     pure (S.KStar 3, T.TForall k a')
 
+isPrimType :: S.Ident -> Maybe T.PrimType
+isPrimType = \case
+  "World" -> Just T.TWorld
+  "Int" -> Just T.TInt
+  "Bool" -> Just T.TBool
+  _ -> Nothing
+
 checkType :: S.Type -> S.Kind -> TC T.Type
 checkType a k = do
   (k', a') <- inferType a
-  -- TODO: Kind subtyping
-  unless (k == k') $ throwError "Kind mismatch"
+  unless (k >= k') $ throwError $ "Kind mismatch between " ++ show k ++ " and " ++ show k'
   pure a'
 
 evalType :: T.Type -> TC V.Type
