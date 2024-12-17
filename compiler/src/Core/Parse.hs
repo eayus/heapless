@@ -158,7 +158,7 @@ pType = makeExprParser pAtom ops
       TProd q a r <$> pType
 
 pKind :: Parser Kind
-pKind = choice [KStar1 <$ symbol "Type1", KStar2 <$ symbol "Type2", KStar3 <$ symbol "Type3"]
+pKind = choice [KStar 1 <$ symbol "Type1", KStar 2 <$ symbol "Type2", KStar 3 <$ symbol "Type3"]
 
 -- Not supplying a multiplicity is inferred to be Many (unrestricted).
 pMult :: Parser Mult

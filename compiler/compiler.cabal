@@ -18,12 +18,14 @@ library
         Core.Norm.Eval,
         Core.Norm.Reify,
         Core.Norm.Value,
+        Core.Check,
         Core.Parse,
         Core.Syntax,
         Core.Term,
     build-depends:
         megaparsec,
         parser-combinators,
+        unordered-containers,
 
 executable compiler
     import: config

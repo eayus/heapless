@@ -8,14 +8,14 @@ type Ident = String
 data Mult
   = One -- Linear.
   | Many -- Unrestricted.
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- Kinds of types.
-data Kind
-  = KStar1 -- Base types and products of base types.
-  | KStar2 -- Curried first-order functions.
-  | KStar3 -- Everything else (including higher-order/polymorphic functions).
-  deriving (Show)
+-- KStar 1: Base types and products of base types.
+-- KStar 2: Curried first-order functions.
+-- KStar 3: Everything else (including higher-order/polymorphic functions).
+newtype Kind = KStar Int
+  deriving (Eq, Enum, Ord, Show)
 
 -- Types.
 data Type

@@ -8,6 +8,7 @@ data PrimType
   = TInt
   | TBool
   | TWorld
+  deriving (Eq)
 
 -- Types.
 data Type
@@ -16,13 +17,14 @@ data Type
   | TFunc Mult Type Type -- Function types.
   | TProd Mult Type Mult Type -- Product types, each side with its multiplicity.
   | TForall Kind Type -- Universal quantification.
+  deriving (Eq)
 
 -- Primitive operations.
 data Prim e
   = PAdd e e
   | PSub e e
-  | PReadInt
-  | PPrintInt e
+  | PReadInt e
+  | PPrintInt e e
   | PBool Bool
   | PInt Integer
   deriving (Functor)
