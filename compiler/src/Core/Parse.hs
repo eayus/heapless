@@ -54,6 +54,7 @@ pExpr = makeExprParser pApps ops
           pIf,
           pInt,
           pBool,
+          pPrim,
           EName <$> pIdent,
           parens pExpr
         ]
@@ -108,6 +109,14 @@ pExpr = makeExprParser pApps ops
       x <- pExpr
       symbol ","
       EPair x <$> pExpr
+
+    pPrim = do
+      symbol "#"
+      x <- pIdent
+      symbol "["
+      ts <- sepEndBy pExpr $ symbol ","
+      symbol "]"
+      pure $ EPrim x ts
 
     pIf = do
       symbol "if"

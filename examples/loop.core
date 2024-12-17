@@ -1,6 +1,6 @@
 let rec go : World -o World =
     λ w0.
-        let 1 w1 = printInt 0 w0;
+        let 1 w1 = #printInt[0, w0];
         go w1;
 
 go

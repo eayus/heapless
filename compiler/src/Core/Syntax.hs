@@ -43,6 +43,7 @@ data Expr
   | ELetPair Mult (Ident, Ident) (Maybe Type) Expr Expr -- Pair destructuring via let binding (non-recursive).
   | EPair Expr Expr -- Product constructor.
   | EBin BinOp Expr Expr -- Binary expression (+, -, etc.).
+  | EPrim Ident [Expr] -- Primitive functions (IO primitives, etc.)
   | EIf Expr Expr Expr -- If expression.
   | EBool Bool -- Boolean literal.
   | EInt Integer -- Integer literal.
