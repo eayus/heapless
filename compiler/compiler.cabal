@@ -18,6 +18,7 @@ library
         Core.Parse,
         Core.Syntax,
         Core.Term,
+        Core.Value,
     build-depends:
         megaparsec,
         parser-combinators,

@@ -18,18 +18,19 @@ data Type
   | TForall Kind Type -- Universal quantification.
 
 -- Primitive operations.
-data Prim
-  = PAdd Expr Expr
-  | PSub Expr Expr
+data Prim e
+  = PAdd e e
+  | PSub e e
   | PReadInt
-  | PPrintInt Expr
+  | PPrintInt e
   | PBool Bool
   | PInt Integer
+  deriving (Functor)
 
 -- Expressions.
 data Expr
   = EVar Int -- Variables as a de Bruijn level.
-  | EPrim Prim -- A primitive operation (arithmetic, constants, primitive IO, etc.)
+  | EPrim (Prim Expr) -- A primitive operation (arithmetic, constants, primitive IO, etc.)
   | ELam Type Expr -- Lambda abstractions.
   | EApp Expr Expr -- Function application.
   | ETyLam Expr -- Type abstraction (capital lambda).
