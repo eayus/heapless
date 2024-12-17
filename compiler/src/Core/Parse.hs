@@ -55,7 +55,7 @@ pExpr = makeExprParser pApps ops
           pInt,
           pBool,
           pPrim,
-          EName <$> pIdent,
+          EVar <$> pIdent,
           parens pExpr
         ]
 

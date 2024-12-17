@@ -33,7 +33,7 @@ data BinOp
 
 -- Expressions.
 data Expr
-  = EName Ident -- Variables AND builtin functions.
+  = EVar Ident -- Variables.
   | ELam Ident Expr -- Lambda abstractions.
   | EApp Expr Expr -- Function application.
   | ETyLam Ident Expr -- Type abstraction (capital lambda).
