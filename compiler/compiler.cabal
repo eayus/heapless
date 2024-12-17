@@ -17,6 +17,7 @@ library
     exposed-modules:
         Core.Parse,
         Core.Syntax,
+        Core.Term,
     build-depends:
         megaparsec,
         parser-combinators,
