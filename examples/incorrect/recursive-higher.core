@@ -1,0 +1,3 @@
+let rec foo : (Int -> Int) -> Int = foo;
+
+λ w0. w0

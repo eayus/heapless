@@ -150,7 +150,7 @@ pType = makeExprParser pAtom ops
       symbol "."
       TForall x k <$> pType
 
-    pProd = parens $ do
+    pProd = try $ parens $ do
       q <- pMult
       a <- pType
       symbol ","

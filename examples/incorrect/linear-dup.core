@@ -1,0 +1,4 @@
+λ w0.
+    let 1 w1 = #printInt[0, w0];
+    let 1 w2 = #printInt[1, w0];
+    w2

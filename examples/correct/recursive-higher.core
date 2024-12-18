@@ -1,0 +1,7 @@
+λ w0.
+    let foo : (Int -> Int) -> Int -> Int =
+        λ f.
+            let rec go : Int -> Int = go;
+            go;
+
+    w0
