@@ -6,8 +6,8 @@ import Core.Norm.Value qualified as V
 import Core.Term qualified as T
 import Data.Function (fix)
 
-reifyMain :: V.Expr -> T.Expr
-reifyMain t = reifyNf 0 0 t V.mainType
+partialEval :: T.Expr -> T.Expr
+partialEval t = reifyNf 0 0 (evalExpr [] [] t) V.mainType
 
 reifyNf :: Int -> Int -> V.Expr -> V.Type -> T.Expr
 reifyNf tlen len t = \case

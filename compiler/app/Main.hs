@@ -2,6 +2,7 @@ module Main where
 
 import Control.Monad.Except
 import Core.Check
+import Core.Norm.Reify
 import Core.Parse
 import System.Environment
 
@@ -15,6 +16,7 @@ go :: ExceptT String IO ()
 go = do
   [filepath] <- lift getArgs
   expr <- parseFile filepath
-  _ <- typecheck expr
-  -- lift $ print expr
+  core <- typecheck expr
+  let core' = partialEval core
+  lift $ print core'
   lift $ putStrLn "OK :)"

@@ -28,7 +28,7 @@ data Prim e
   | PPrintInt e e
   | PBool Bool
   | PInt Integer
-  deriving (Functor)
+  deriving (Functor, Show)
 
 -- Expressions.
 data Expr
@@ -43,3 +43,4 @@ data Expr
   | ELetPair Mult Type Expr Expr -- Pair destructuring via let binding (non-recursive).
   | EPair Expr Expr -- Product constructor.
   | EIf Expr Expr Expr -- If expression.
+  deriving (Show)

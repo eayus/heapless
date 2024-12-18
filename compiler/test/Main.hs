@@ -2,8 +2,8 @@ module Main where
 
 import Control.Monad.Except
 import Core.Check
+import Core.Norm.Reify
 import Core.Parse
-import Data.Bifunctor
 import System.Directory
 import Test.HUnit
 
@@ -25,16 +25,20 @@ testCorrectFile :: FilePath -> Test
 testCorrectFile fp = TestCase $ do
   res <- runExceptT $ do
     core <- parseFile fp
-    _ <- typecheck core
-    pure ()
-  let name = "process file " ++ show fp
-  assertEqual name (Right ()) (void res)
+    typecheck core
+  case res of
+    Left err -> assertFailure err
+    Right core -> do
+      let pe = partialEval core
+      putStrLn $ "\t" ++ show pe
+      pure ()
 
 testIncorrectFile :: FilePath -> Test
 testIncorrectFile fp = TestCase $ do
+  -- TODO: Assert that parsing succeeds, but typechecking fails?
   res <- runExceptT $ do
     core <- parseFile fp
-    _ <- typecheck core
-    pure ()
-  let name = "process incorrect file " ++ show fp
-  assertEqual name (Left ()) (bimap (const ()) (const ()) res)
+    typecheck core
+  case res of
+    Left _ -> pure ()
+    Right _ -> assertFailure $ "Expected example " ++ show fp ++ " to fail, but it actually succeeded"
