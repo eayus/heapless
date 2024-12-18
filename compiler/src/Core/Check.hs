@@ -110,6 +110,10 @@ inferExpr = \case
       t' <- checkExpr t $ V.TPrim T.TInt
       u' <- checkExpr u $ V.TPrim T.TInt
       pure (V.TPrim T.TInt, T.EPrim $ T.PSub t' u')
+    S.Eql -> do
+      t' <- checkExpr t $ V.TPrim T.TInt
+      u' <- checkExpr u $ V.TPrim T.TInt
+      pure (V.TPrim T.TBool, T.EPrim $ T.PEql t' u')
   S.EPrim x ts -> case x of
     "printInt" -> case ts of
       [t, u] -> do

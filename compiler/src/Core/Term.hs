@@ -23,6 +23,7 @@ data Type
 data Prim e
   = PAdd e e
   | PSub e e
+  | PEql e e
   | PReadInt e
   | PPrintInt e e
   | PBool Bool

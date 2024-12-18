@@ -1,7 +1,9 @@
 λ w0.
-    let foo : (Int -> Int) -> Int -> Int =
+    let foo : (Int -> Int) -> Int -> Int -> Int =
         λ f.
-            let rec go : Int -> Int = go;
+            let rec go : Int -> Int -> Int =
+                λ n. λ x.
+                    if n == 0 then x else f (go (n - 1) x);
             go;
 
     w0

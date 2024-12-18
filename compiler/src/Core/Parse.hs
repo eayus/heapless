@@ -26,7 +26,8 @@ pExpr = makeExprParser pApps ops
     ops =
       [ [ InfixL (EBin Add <$ symbol "+"),
           InfixL (EBin Sub <$ symbol "-")
-        ]
+        ],
+        [InfixL (EBin Eql <$ symbol "==")]
       ]
 
     pApps = do

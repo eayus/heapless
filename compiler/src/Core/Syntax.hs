@@ -29,6 +29,7 @@ data Type
 data BinOp
   = Add
   | Sub
+  | Eql
   deriving (Show)
 
 -- Expressions.
