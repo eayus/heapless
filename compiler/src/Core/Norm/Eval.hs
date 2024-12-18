@@ -16,7 +16,7 @@ evalExpr tenv env =
         T.EVar l -> level l env
         T.EPrim t -> V.EPrim (fmap ev t)
         T.ELam a t -> V.ELam (tev a) (sus t)
-        T.EApp t u -> app (ev t) (ev u)
+        T.EApp a b t u -> app (tev a) (tev b) (ev t) (ev u)
         T.ETyLam t -> V.ETyLam (tsus t)
         T.ETyApp t a -> tyApp (ev t) (tev a)
         T.ELet _ _ t u -> sus u (ev t)
@@ -33,14 +33,14 @@ evalType env = fix $ \ev -> \case
   T.TProd q a p b -> V.TProd q (ev a) p (ev b)
   T.TForall k a -> V.TForall k $ \b -> evalType (b : env) a
 
-app :: V.Expr -> V.Expr -> V.Expr
-app = \case
+app :: V.Type -> V.Type -> V.Expr -> V.Expr -> V.Expr
+app a b = \case
   V.ELam _ f -> f
-  V.EIf t u v -> \rhs -> V.EIf t (app u rhs) (app v rhs)
-  V.ELet q a t u -> \rhs -> V.ELet q a t $ \arg -> app (u arg) rhs
-  V.ELetRec a t u -> \rhs -> V.ELetRec a t $ \arg -> app (u arg) rhs
-  V.ELetPair q a t u -> \rhs -> V.ELetPair q a t $ \arg -> app (u arg) rhs
-  lhs -> V.EApp lhs
+  V.EIf t u v -> \rhs -> V.EIf t (app a b u rhs) (app a b v rhs)
+  V.ELet q a t u -> \rhs -> V.ELet q a t $ \arg -> app a b (u arg) rhs
+  V.ELetRec a t u -> \rhs -> V.ELetRec a t $ \arg -> app a b (u arg) rhs
+  V.ELetPair q a t u -> \rhs -> V.ELetPair q a t $ \arg -> app a b (u arg) rhs
+  lhs -> V.EApp a b lhs
 
 tyApp :: V.Expr -> V.Type -> V.Expr
 tyApp = \case

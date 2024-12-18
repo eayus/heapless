@@ -35,7 +35,7 @@ data Expr
   = EVar Int -- Variables as a de Bruijn level.
   | EPrim (Prim Expr) -- A primitive operation (arithmetic, constants, primitive IO, etc.)
   | ELam Type Expr -- Lambda abstractions.
-  | EApp Expr Expr -- Function application.
+  | EApp Type Type Expr Expr -- Function application. A, B, Expr (A -> B), Expr A.
   | ETyLam Expr -- Type abstraction (capital lambda).
   | ETyApp Expr Type -- Type application (instantiation).
   | ELet Mult Type Expr Expr -- Let biniding (non-recursive).

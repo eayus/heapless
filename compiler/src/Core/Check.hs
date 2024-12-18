@@ -43,13 +43,10 @@ useVar x = tell $ Uses $ M.singleton x S.One
 -- TODO: Can we change the monad stack order to avoid rewrapping the ExceptT.
 typecheck :: (MonadError String m) => S.Expr -> m T.Expr
 typecheck t = do
-  let x = runExceptT (checkExpr t mainType)
+  let x = runExceptT (checkExpr t V.mainType)
   let y = runWriterT x
   let (z, _) = runReader y initCtxt
   liftEither z
-
-mainType :: V.Type
-mainType = V.TFunc S.One (V.TPrim T.TWorld) (V.TPrim T.TWorld)
 
 initCtxt :: Ctxt
 initCtxt = Ctxt [] []
@@ -66,7 +63,9 @@ inferExpr = \case
     inferExpr t >>= \case
       (V.TFunc q a b, t') -> do
         u' <- multiplyUses q $ checkExpr u a
-        pure (b, T.EApp t' u')
+        a' <- reifyType a
+        b' <- reifyType b
+        pure (b, T.EApp a' b' t' u')
       _ -> throwError "Can't apply a term which is not a function"
   S.ETyLam {} -> throwError "Can't infer the type for a type abstraction"
   S.ETyApp t a ->
