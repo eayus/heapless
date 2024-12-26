@@ -1,6 +1,7 @@
 -- Type check syntax and elaborate to a typed core representation.
 module Core.Check where
 
+import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Writer

@@ -17,6 +17,7 @@ library
     exposed-modules:
         Core.Norm.Eval,
         Core.Norm.Reify,
+        Core.Norm.Term,
         Core.Norm.Value,
         Core.Check,
         Core.Parse,
