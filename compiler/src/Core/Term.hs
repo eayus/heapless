@@ -28,7 +28,7 @@ data Prim e
   | PPrintInt e e
   | PBool Bool
   | PInt Integer
-  deriving (Functor, Show)
+  deriving (Functor, Foldable, Traversable, Show)
 
 -- Expressions.
 data Expr

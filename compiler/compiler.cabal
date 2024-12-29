@@ -23,6 +23,12 @@ library
         Core.Parse,
         Core.Syntax,
         Core.Term,
+        Core.Uncurry,
+        LL.Term,
+        UC.Name,
+        UC.Free,
+        UC.Term,
+        UC.LambdaLift,
     build-depends:
         megaparsec,
         parser-combinators,

@@ -4,6 +4,7 @@ import Control.Monad.Except
 import Core.Check
 import Core.Norm.Reify
 import Core.Parse
+import Core.Uncurry
 import System.Directory
 import Test.HUnit
 
@@ -30,8 +31,8 @@ testCorrectFile fp = TestCase $ do
     Left err -> assertFailure err
     Right core -> do
       let pe = partialEval core
-      putStrLn $ "\t" ++ show pe
-      pure ()
+      let uc = ucNf pe
+      putStrLn $ "\t" ++ show uc
 
 testIncorrectFile :: FilePath -> Test
 testIncorrectFile fp = TestCase $ do
