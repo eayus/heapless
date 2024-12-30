@@ -97,8 +97,9 @@ inferExpr = \case
     case va' of
       V.TProd lq la rq ra -> do
         (b, u') <- bindExpr x (mulMult q lq) la $ bindExpr y (mulMult q rq) ra $ inferExpr u
-        a'' <- reifyType va'
-        pure (b, T.ELetPair q a'' t' u')
+        la' <- reifyType la
+        ra' <- reifyType ra
+        pure (b, T.ELetPair q la' ra' t' u')
       _ -> throwError "Can't use pair pattern for non product type"
   t@(S.EPair {}) -> throwError $ "Can't infer the type for the pair " ++ show t
   S.EBin op t u -> case op of

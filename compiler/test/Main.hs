@@ -7,6 +7,8 @@ import Core.Parse
 import Core.Uncurry
 import System.Directory
 import Test.HUnit
+import UC.LambdaLift
+import UC.Name
 
 main :: IO ()
 main = do
@@ -32,7 +34,9 @@ testCorrectFile fp = TestCase $ do
     Right core -> do
       let pe = partialEval core
       let uc = ucNf pe
-      putStrLn $ "\t" ++ show uc
+      let uc' = nameMain uc
+      let ll = llMain uc'
+      putStrLn $ "\t" ++ show ll
 
 testIncorrectFile :: FilePath -> Test
 testIncorrectFile fp = TestCase $ do

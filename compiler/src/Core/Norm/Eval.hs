@@ -21,7 +21,7 @@ evalExpr tenv env =
         T.ETyApp t a -> tyApp (ev t) (tev a)
         T.ELet _ _ t u -> sus u (ev t)
         T.ELetRec a t u -> V.ELetRec (tev a) (sus t) (sus u)
-        T.ELetPair q a t u -> V.ELetPair q (tev a) (ev t) (susPair u)
+        T.ELetPair q a b t u -> V.ELetPair q (tev a) (tev b) (ev t) (susPair u)
         T.EPair t u -> V.EPair (ev t) (ev u)
         T.EIf t u v -> V.EIf (ev t) (ev u) (ev v)
 
@@ -37,9 +37,9 @@ app :: V.Type -> V.Type -> V.Expr -> V.Expr -> V.Expr
 app a b = \case
   V.ELam _ f -> f
   V.EIf t u v -> \rhs -> V.EIf t (app a b u rhs) (app a b v rhs)
-  V.ELet q a t u -> \rhs -> V.ELet q a t $ \arg -> app a b (u arg) rhs
-  V.ELetRec a t u -> \rhs -> V.ELetRec a t $ \arg -> app a b (u arg) rhs
-  V.ELetPair q a t u -> \rhs -> V.ELetPair q a t $ \arg -> app a b (u arg) rhs
+  V.ELet q c t u -> \rhs -> V.ELet q c t $ \arg -> app a b (u arg) rhs
+  V.ELetRec c t u -> \rhs -> V.ELetRec c t $ \arg -> app a b (u arg) rhs
+  V.ELetPair q c d t u -> \rhs -> V.ELetPair q c d t $ \arg -> app a b (u arg) rhs
   lhs -> V.EApp a b lhs
 
 tyApp :: V.Expr -> V.Type -> V.Expr
@@ -48,7 +48,7 @@ tyApp = \case
   V.EIf t u v -> \rhs -> V.EIf t (tyApp u rhs) (tyApp v rhs)
   V.ELet q a t u -> \rhs -> V.ELet q a t $ \arg -> tyApp (u arg) rhs
   V.ELetRec a t u -> \rhs -> V.ELetRec a t $ \arg -> tyApp (u arg) rhs
-  V.ELetPair q a t u -> \rhs -> V.ELetPair q a t $ \arg -> tyApp (u arg) rhs
+  V.ELetPair q a b t u -> \rhs -> V.ELetPair q a b t $ \arg -> tyApp (u arg) rhs
   lhs -> V.ETyApp lhs
 
 level :: Int -> [a] -> a

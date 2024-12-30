@@ -23,7 +23,7 @@ data Expr
   | ETyApp Expr Type -- Type application (instantiation).
   | ELet Mult Type Expr (Expr -> Expr) -- Let biniding (non-recursive).
   | ELetRec Type (Expr -> Expr) (Expr -> Expr) -- Recursive let binding.
-  | ELetPair Mult Type Expr ((Expr, Expr) -> Expr) -- Pair destructuring via let binding (non-recursive).
+  | ELetPair Mult Type Type Expr ((Expr, Expr) -> Expr) -- Pair destructuring via let binding (non-recursive).
   | EPair Expr Expr -- Product constructor.
   | EIf Expr Expr Expr -- If expression.
 

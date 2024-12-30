@@ -23,7 +23,7 @@ data Ne
   | EPrim (Prim Ne) -- A primitive operation (arithmetic, constants, primitive IO, etc.)
   | EApp Type Type Ne Nf -- Function application. A, B, Expr (A -> B), Expr A.
   | ELetRec Type Nf Ne -- Recursive let binding.
-  | ELetPair Mult Type Ne Ne -- Pair destructuring via let binding (non-recursive).
+  | ELetPair Mult Type Type Ne Ne -- Pair destructuring via let binding (non-recursive).
   | EPair Ne Ne -- Product constructor.
   | EIf Ne Ne Ne -- If expression.
   deriving (Show)

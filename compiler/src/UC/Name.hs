@@ -33,12 +33,12 @@ nameNe = \case
     t' <- local (x :) $ nameNf t
     u' <- local (x :) $ nameNe u
     pure $ ELetRec x a t' u'
-  ELetPair () () q a t u -> do
+  ELetPair () () q a b t u -> do
     x <- fresh
     y <- fresh
     t' <- nameNe t
     u' <- local ([x, y] ++) $ nameNe u
-    pure $ ELetPair x y q a t' u'
+    pure $ ELetPair x y q a b t' u'
   EPair t u -> liftA2 EPair (nameNe t) (nameNe u)
   EIf t u v -> liftA3 EIf (nameNe t) (nameNe u) (nameNe v)
 
