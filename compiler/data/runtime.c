@@ -8,7 +8,7 @@ uint64_t read_int_c(void) {
 }
 
 void print_int_c(uint64_t n) {
-    printf("%" PRIu64, n);
+    printf("%" PRIu64 "\n", n);
 }
 
 void rust_main(void);

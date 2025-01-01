@@ -7,4 +7,4 @@
 
     let add2 : Int -> Int = compose @Int @Int @Int (λ x. x + 1) (λ x. x + 1);
 
-    #printInt[add2 0, w0]
+    #printInt[add2 5, w0]

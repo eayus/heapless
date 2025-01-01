@@ -11,7 +11,7 @@ data Prog
   deriving (Show)
 
 data Func
-  = LetRec Name [(Name, Type)] Expr
+  = LetRec Name [(Name, Type)] Type Expr
   deriving (Show)
 
 data Expr

@@ -5,4 +5,4 @@
                 λ n. λ x.
                     if n == 0 then x else f (go (n - 1) x);
             go;
-    #printInt[foo (λ m. m + m)  3 1, w0]
+    #printInt[foo (λ m. m + m)  5 1, w0]

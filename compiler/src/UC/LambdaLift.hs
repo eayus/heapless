@@ -32,9 +32,10 @@ ll = \case
   U.EApp as b t us -> liftA2 (L.EApp as b) (ll t) (mapM llNf us)
   U.ELetRec x a t u -> case t of
     U.ELam as body -> do
+      let ret = case a of U.TFunc _ ret -> ret
       captured <- M.toList . M.delete x <$> local ((x, a) :) (freesNf t)
       body' <- local (((x, a) : as) ++) $ ll body
-      tell $ singleton $ L.LetRec x (captured ++ as) body'
+      tell $ singleton $ L.LetRec x (captured ++ as) ret body'
       mapReaderT (local ((x, map fst captured) :)) $ local ((x, a) :) $ ll u
     U.ENeu {} -> undefined
   U.ELetPair x y q a b t u -> local ([(x, a), (y, b)] ++) $ liftA2 (L.ELetPair x y q a b) (ll t) (ll u)
