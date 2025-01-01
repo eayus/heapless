@@ -9,6 +9,7 @@ import LL.Codegen
 import System.Environment
 import UC.LambdaLift
 import UC.Name
+import System.Cmd
 
 main :: IO ()
 main =
@@ -41,6 +42,15 @@ go = do
   lift $ putStrLn "\nll"
   lift $ print ll
 
-  let rust = cgProg ll
+  rust <- lift $ cgProg ll
   lift $ putStrLn rust
-  lift $ putStrLn "\n\nOK :)"
+  -- lift $ putStrLn "\n\nOK :)"
+
+  lift $ do
+    system "mkdir -p .build"
+    writeFile ".build/main.rs" rust
+    system "rustc .build/main.rs --crate-type=staticlib -Cpanic=abort -O -o .build/lib.a"
+    system "clang data/runtime.c -c -o .build/runtime.o"
+    system "clang .build/runtime.o .build/lib.a -o .build/main"
+    
+  pure ()

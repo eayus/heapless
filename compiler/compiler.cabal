@@ -10,6 +10,7 @@ common config
     build-depends:
         base,
         mtl,
+        process,
 
 library
     import: config

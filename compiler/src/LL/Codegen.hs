@@ -5,11 +5,12 @@ import Data.List
 import LL.Term
 import UC.Term (Type (..))
 
-cgProg :: Prog -> String
-cgProg (Prog fs t) = prelude ++ concatMap cgFunc fs ++ main
+cgProg :: Prog -> IO String
+cgProg (Prog fs t) = do
+  prelude <- readFile "data/prelude.rs"
+  pure $ prelude ++ concatMap cgFunc fs ++ main
   where
-    prelude = "fn print_int(n: usize) { println!(\"{}\", n); }"
-    main = "fn main()" ++ braces ("let a = ();"++cg t)
+    main = "#[no_mangle] pub fn rust_main()" ++ braces ("let a = ();"++cg t)
 
 cgFunc :: Func -> String -- TODO return type
 cgFunc (LetRec x ps t) = "fn " ++ x ++ parens (intercalate "," $ map (\(y, a) -> y ++ ":" ++ cgType a) ps) ++ braces (cg t)
