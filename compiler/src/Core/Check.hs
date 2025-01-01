@@ -54,6 +54,7 @@ initCtxt = Ctxt [] []
 
 inferExpr :: S.Expr -> TC (V.Type, T.Expr)
 inferExpr = \case
+  S.EVar "unit" -> pure (V.TPrim T.TUnit, T.EPrim T.PUnit)
   S.EVar x -> do
     vars <- asks exprVars
     (a, l) <- lookupVar x vars
@@ -201,6 +202,7 @@ isPrimType = \case
   "World" -> Just T.TWorld
   "Int" -> Just T.TInt
   "Bool" -> Just T.TBool
+  "Unit" -> Just T.TUnit
   _ -> Nothing
 
 checkType :: S.Type -> S.Kind -> TC T.Type

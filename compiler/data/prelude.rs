@@ -1,5 +1,6 @@
 #![allow(unused_parens)]
 #![allow(dead_code)]
+#![allow(unused_variables)]
 
 #![no_std]
 #![no_main]
@@ -17,8 +18,8 @@ extern "C" {
     fn print_int_c(n: usize);
 }
 
-fn read_int() -> ((), usize) {
-    unsafe { ((), read_int_c()) }
+fn read_int() -> (usize, ()) {
+    unsafe { (read_int_c(), ()) }
 }
 
 fn print_int(n: usize) -> () {

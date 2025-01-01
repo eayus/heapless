@@ -4,7 +4,6 @@ module Core.Parse (parseFile) where
 import Control.Monad
 import Control.Monad.Combinators.Expr
 import Control.Monad.Except
-import Control.Monad.Reader
 import Core.Syntax
 import Data.Maybe
 import Data.Void

@@ -8,6 +8,7 @@ data PrimType
   = TInt
   | TBool
   | TWorld
+  | TUnit
   deriving (Eq, Show)
 
 -- Types.
@@ -28,6 +29,7 @@ data Prim e
   | PPrintInt e e
   | PBool Bool
   | PInt Integer
+  | PUnit
   deriving (Functor, Foldable, Traversable, Show)
 
 -- Expressions.

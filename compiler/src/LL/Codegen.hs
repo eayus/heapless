@@ -26,8 +26,9 @@ cg = \case
     PPrintInt t _ -> "print_int(" ++ t ++ ")"
     PBool b -> if b then "true" else "false"
     PInt n -> show n
+    PUnit -> "()"
   EApp _ _ t us -> cg t ++ parens (intercalate "," $ map cg us)
-  ELetPair x y _ _ _ t u -> "let " ++ parens (x ++ "," ++ y) ++ "=" ++ cg t ++ ";" ++ cg u
+  ELetPair x y _ _ _ t u -> braces $ "let " ++ parens (x ++ "," ++ y) ++ "=" ++ cg t ++ ";" ++ cg u
   EPair t u -> parens $ cg t ++ "," ++ cg u
   EIf t u v -> "if " ++ cg t ++ braces (cg u) ++ "else" ++ braces (cg v)
 
@@ -37,6 +38,7 @@ cgType = \case
     TInt -> "usize"
     TBool -> "bool"
     TWorld -> "()"
+    TUnit -> "()"
   TFunc _ _ -> undefined
   TProd _ a _ b -> parens $ cgType a ++ "," ++ cgType b
 
