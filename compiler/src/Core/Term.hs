@@ -3,9 +3,16 @@ module Core.Term where
 
 import Core.Syntax (Kind, Mult)
 
+data IntSize
+  = I64
+  | I32
+  | I16
+  | I8
+  deriving (Bounded, Enum, Eq, Show)
+
 -- Builtin primitive types.
 data PrimType
-  = TInt
+  = TInt IntSize
   | TBool
   | TWorld
   | TUnit

@@ -1,6 +1,7 @@
 -- Type check syntax and elaborate to a typed core representation.
 module Core.Check where
 
+import Control.Applicative.Combinators
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -104,29 +105,35 @@ inferExpr = \case
       _ -> throwError "Can't use pair pattern for non product type"
   t@(S.EPair {}) -> throwError $ "Can't infer the type for the pair " ++ show t
   S.EBin op t u -> case op of
-    S.Add -> do
-      t' <- checkExpr t $ V.TPrim T.TInt
-      u' <- checkExpr u $ V.TPrim T.TInt
-      pure (V.TPrim T.TInt, T.EPrim $ T.PAdd t' u')
-    S.Sub -> do
-      t' <- checkExpr t $ V.TPrim T.TInt
-      u' <- checkExpr u $ V.TPrim T.TInt
-      pure (V.TPrim T.TInt, T.EPrim $ T.PSub t' u')
-    S.Eql -> do
-      t' <- checkExpr t $ V.TPrim T.TInt
-      u' <- checkExpr u $ V.TPrim T.TInt
-      pure (V.TPrim T.TBool, T.EPrim $ T.PEql t' u')
+    S.Add -> choice $ do
+      k <- [minBound..maxBound]
+      pure $ do
+        t' <- checkExpr t $ V.TPrim $ T.TInt k
+        u' <- checkExpr u $ V.TPrim $ T.TInt k
+        pure (V.TPrim $ T.TInt k, T.EPrim $ T.PAdd t' u')
+    S.Sub -> choice $ do
+      k <- [minBound..maxBound]
+      pure $ do
+        t' <- checkExpr t $ V.TPrim $ T.TInt k
+        u' <- checkExpr u $ V.TPrim $ T.TInt k
+        pure (V.TPrim $ T.TInt k, T.EPrim $ T.PSub t' u')
+    S.Eql -> choice $ do
+      k <- [minBound..maxBound]
+      pure $ do
+        t' <- checkExpr t $ V.TPrim $ T.TInt k
+        u' <- checkExpr u $ V.TPrim $ T.TInt k
+        pure (V.TPrim T.TBool, T.EPrim $ T.PEql t' u')
   S.EPrim x ts -> case x of
     "printInt" -> case ts of
       [t, u] -> do
-        t' <- checkExpr t $ V.TPrim T.TInt
+        t' <- checkExpr t $ V.TPrim $ T.TInt T.I64
         u' <- checkExpr u $ V.TPrim T.TWorld
         pure (V.TPrim T.TWorld, T.EPrim $ T.PPrintInt t' u')
       _ -> throwError $ "Wrong num args supplied to prim " ++ show x
     "readInt" -> case ts of
       [t] -> do
         t' <- checkExpr t $ V.TPrim T.TWorld
-        pure (V.TProd S.One (V.TPrim T.TWorld) S.Many (V.TPrim T.TInt), T.EPrim $ T.PReadInt t')
+        pure (V.TProd S.One (V.TPrim T.TWorld) S.Many (V.TPrim $ T.TInt T.I64), T.EPrim $ T.PReadInt t')
       _ -> throwError $ "Wrong num args supplied to prim " ++ show x
     _ -> throwError $ "Unknown prim op named " ++ show x
   S.EIf t u v -> do
@@ -135,7 +142,7 @@ inferExpr = \case
     ensureEqual a b
     pure (a, T.EIf t' u' v')
   S.EBool b -> pure (V.TPrim T.TBool, T.EPrim $ T.PBool b)
-  S.EInt n -> pure (V.TPrim T.TInt, T.EPrim $ T.PInt n)
+  S.EInt n -> pure (V.TPrim $ T.TInt T.I64, T.EPrim $ T.PInt n)
 
 checkExpr :: S.Expr -> V.Type -> TC T.Expr
 checkExpr = \case
@@ -200,7 +207,10 @@ inferType = \case
 isPrimType :: S.Ident -> Maybe T.PrimType
 isPrimType = \case
   "World" -> Just T.TWorld
-  "Int" -> Just T.TInt
+  "Int" -> Just $ T.TInt T.I64
+  "Int64" -> Just $ T.TInt T.I64
+  "Int32" -> Just $ T.TInt T.I32
+  "Int16" -> Just $ T.TInt T.I16
   "Bool" -> Just T.TBool
   "Unit" -> Just T.TUnit
   _ -> Nothing

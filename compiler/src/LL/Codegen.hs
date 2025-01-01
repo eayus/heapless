@@ -1,6 +1,6 @@
 module LL.Codegen where
 
-import Core.Term (Prim (..), PrimType (..))
+import Core.Term (Prim (..), PrimType (..), IntSize (..))
 import Data.List
 import LL.Term
 import UC.Term (Type (..))
@@ -35,7 +35,10 @@ cg = \case
 cgType :: Type -> String
 cgType = \case
   TPrim p -> case p of
-    TInt -> "usize"
+    TInt I64 -> "usize"
+    TInt I32 -> "u32"
+    TInt I16 -> "u16"
+    TInt I8 -> "u8"
     TBool -> "bool"
     TWorld -> "()"
     TUnit -> "()"
