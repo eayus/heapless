@@ -67,7 +67,7 @@ inferExpr = \case
         a' <- reifyType a
         b' <- reifyType b
         pure (b, T.EApp a' b' t' u')
-      _ -> throwError "Can't apply a term which is not a function"
+      _ -> throwError $ "Can't apply a term which is not a function " ++ show t
   S.ETyLam {} -> throwError "Can't infer the type for a type abstraction"
   S.ETyApp t a ->
     inferExpr t >>= \case
@@ -125,7 +125,7 @@ inferExpr = \case
     "readInt" -> case ts of
       [t] -> do
         t' <- checkExpr t $ V.TPrim T.TWorld
-        pure (V.TProd S.Many (V.TPrim T.TInt) S.One (V.TPrim T.TWorld), T.EPrim $ T.PReadInt t')
+        pure (V.TProd S.One (V.TPrim T.TWorld) S.Many (V.TPrim T.TInt), T.EPrim $ T.PReadInt t')
       _ -> throwError $ "Wrong num args supplied to prim " ++ show x
     _ -> throwError $ "Unknown prim op named " ++ show x
   S.EIf t u v -> do
@@ -227,7 +227,7 @@ bindExpr x q a m = do
   (res, Uses u) <- censor (\(Uses u) -> Uses $ M.delete x u) $ listen $ local (\ctxt -> ctxt {exprVars = (x, a) : exprVars ctxt}) m
   case (q, M.lookup x u) of
     (S.One, Just S.One) -> pure ()
-    (S.One, _) -> throwError "Linear variable not used once"
+    (S.One, _) -> throwError $ "Linear variable not used once " ++ x
     (S.Many, _) -> pure ()
   pure res
 
