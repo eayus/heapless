@@ -25,6 +25,7 @@ library
         Core.Term,
         Core.Uncurry,
         LL.Term,
+        LL.Codegen,
         UC.Name,
         UC.Free,
         UC.Term,

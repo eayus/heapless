@@ -4,9 +4,10 @@ import Control.Monad.Except
 import Core.Check
 import Core.Norm.Reify
 import Core.Parse
-import System.Environment
 import Core.Uncurry
-import UC.LambdaLift (llMain)
+import LL.Codegen
+import System.Environment
+import UC.LambdaLift
 import UC.Name
 
 main :: IO ()
@@ -39,4 +40,7 @@ go = do
   let ll = llMain uc'
   lift $ putStrLn "\nll"
   lift $ print ll
+
+  let rust = cgProg ll
+  lift $ putStrLn rust
   lift $ putStrLn "\n\nOK :)"
