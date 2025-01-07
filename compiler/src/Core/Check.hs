@@ -202,10 +202,12 @@ inferType = \case
     let o = min (max (succ oa) ob) 3
     pure (S.KStar o, T.TFunc q a' b')
   S.TProd q a p b -> do
-    -- TODO: For now, only basic types can appear in pairs, but this restriction can be lifted.
-    a' <- checkType a $ S.KStar 1
-    b' <- checkType b $ S.KStar 1
-    pure (S.KStar 1, T.TProd q a' p b')
+    (oa, a') <- checkTypeStar a
+    (ob, b') <- checkTypeStar b
+    let o = case (oa, ob) of
+          (1, 1) -> 1
+          _ -> 3
+    pure (S.KStar o, T.TProd q a' p b')
   S.TForall x k a -> do
     (_, a') <- bindType x k $ inferType a
     pure (S.KStar 3, T.TForall k a')

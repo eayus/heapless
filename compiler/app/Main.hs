@@ -7,9 +7,9 @@ import Core.Parse
 import Core.Uncurry
 import LL.Codegen
 import System.Environment
+import System.Process
 import UC.LambdaLift
 import UC.Name
-import System.Cmd
 
 main :: IO ()
 main =
@@ -52,5 +52,5 @@ go = do
     system "rustc .build/main.rs --crate-type=staticlib -Cpanic=abort -O -o .build/lib.a"
     system "clang data/runtime.c -c -o .build/runtime.o"
     system "clang .build/runtime.o .build/lib.a -o .build/main"
-    
+
   pure ()

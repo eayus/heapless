@@ -2,5 +2,4 @@
     let id : ∀ A :: Type3. A -o A =
         Λ A. λx. x;
 
-
     id @World w0

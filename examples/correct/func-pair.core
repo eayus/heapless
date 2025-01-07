@@ -1,0 +1,6 @@
+λ w.
+    let p : (Int -> Int, Int) = (λ n. n + 1, 5);
+    let m =
+        let (f, n) : (Int -> Int, Int) = p;
+        f n;
+    #printInt[m, w]

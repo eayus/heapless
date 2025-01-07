@@ -2,6 +2,7 @@
 module Core.Norm.Eval where
 
 import Core.Norm.Value qualified as V
+import Core.Syntax qualified as S
 import Core.Term qualified as T
 import Data.Function (fix)
 
@@ -22,9 +23,14 @@ evalExpr tenv env =
         T.ETyLet _ a t -> tsus t (tev a)
         T.ELet _ _ t u -> sus u (ev t)
         T.ELetRec a t u -> V.ELetRec (tev a) (sus t) (sus u)
-        T.ELetPair q a b t u -> V.ELetPair q (tev a) (tev b) (ev t) (susPair u)
+        T.ELetPair q a b t u -> letPair q (tev a) (tev b) (ev t) (susPair u)
         T.EPair t u -> V.EPair (ev t) (ev u)
         T.EIf t u v -> V.EIf (ev t) (ev u) (ev v)
+
+letPair :: S.Mult -> V.Type -> V.Type -> V.Expr -> ((V.Expr, V.Expr) -> V.Expr) -> V.Expr
+letPair q a b = \case
+  V.EPair t u -> \f -> f (t, u)
+  t -> V.ELetPair q a b t
 
 evalType :: [V.Type] -> T.Type -> V.Type
 evalType env = fix $ \ev -> \case
