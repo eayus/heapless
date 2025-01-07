@@ -191,7 +191,7 @@ tryCheckExpr t = \case
 
 inferType :: S.Type -> TC (S.Kind, T.Type)
 inferType = \case
-  S.TName x | Just p <- isPrimType x -> pure (S.KStar 0, T.TPrim p)
+  S.TName x | Just p <- isPrimType x -> pure (S.KStar 1, T.TPrim p)
   S.TName x -> do
     vars <- asks typeVars
     ((_, k), l) <- lookupVar x vars
@@ -245,7 +245,7 @@ checkType (S.TLam x a) (S.KFunc k k') = T.TLam <$> bindType x k (checkType a k')
 checkType (S.TLam {}) _ = throwError "Type level lambda must have function kind"
 checkType a k = do
   (k', a') <- inferType a
-  unless (subKind k' k) $ throwError $ "Kind mismatch between " ++ show k ++ " and " ++ show k'
+  unless (subKind k' k) $ throwError $ "When checking " ++ show a ++ "\nInferred kind: " ++ show k' ++ "\nKind mismatch between " ++ show k ++ " and " ++ show k'
   pure a'
 
 evalType :: T.Type -> TC V.Type

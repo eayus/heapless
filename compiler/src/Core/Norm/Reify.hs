@@ -2,9 +2,9 @@
 module Core.Norm.Reify where
 
 import Core.Norm.Eval
+import Core.Norm.Term as N
 import Core.Norm.Value qualified as V
 import Core.Term qualified as T
-import Core.Norm.Term as N
 import Data.Function (fix)
 
 partialEval :: T.Expr -> N.Nf
@@ -47,6 +47,8 @@ reifyType' = fix $ \re -> \case
   V.TProd q a p b -> N.TProd q (re a) p (re b)
   V.TVar {} -> undefined
   V.TForall {} -> undefined
+  V.TApp {} -> undefined
+  V.TLam {} -> undefined
 
 -- Reification for type checking
 reifyType :: Int -> V.Type -> T.Type
@@ -56,3 +58,5 @@ reifyType len = fix $ \re -> \case
   V.TFunc q a b -> T.TFunc q (re a) (re b)
   V.TProd q a p b -> T.TProd q (re a) p (re b)
   V.TForall k f -> T.TForall k $ reifyType (len + 1) $ f $ V.TVar len
+  V.TApp a b -> T.TApp (re a) (re b)
+  V.TLam f -> T.TLam $ reifyType (len + 1) $ f $ V.TVar len

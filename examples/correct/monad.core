@@ -1,0 +1,45 @@
+λ w0.
+
+    type Monad :: (Type1 -> Type2) -> Type3 = λ M. (
+        // pure
+        ∀ A :: Type1. A -> M A,
+
+        // bind
+        ∀ A :: Type1. ∀ B :: Type1. M A -> (A -> M B) -> M B
+    );
+
+    let replicateM :
+        ∀ M :: Type1 -> Type2. ∀ A :: Type1.
+        Monad M -> Int -> M A -> M Unit =
+
+        Λ M. Λ A.
+        λ monad. λ n. λ f.
+            let (pure, bind) : Monad M = monad;
+            let rec go : Int -> M Unit =
+                λ m. if m == 0
+                    then pure @Unit unit
+                    else bind @A @Unit f (λ a. go (m - 1));
+            go n;
+
+    type IO :: Type1 -> Type2 = λ A. World -o (1 World, A);
+
+    let pure : ∀ A :: Type1. A -> IO A =
+        Λ A. λx. λw. (w, x);
+
+    let bind : ∀ A :: Type1. ∀ B :: Type1. IO A -> (A -> IO B) -> IO B =
+        Λ A. Λ B. λx. λf. λw2.
+            let 1 (w1, a) = x w2;
+            f a w1;
+    
+    let run : IO Unit -> (World -o World) =
+        λf. λw. let 1 (w1, u) = f w; w1;
+
+    let printInt : Int -> IO Unit =
+        λn. λw. (#printInt[n, w], unit);
+
+    let ioMonad : Monad IO = (pure, bind);
+
+    let main : IO Unit =
+        replicateM @IO @Unit ioMonad 10 (printInt 2);
+
+    run main w0

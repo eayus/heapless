@@ -185,7 +185,7 @@ pKind :: Parser Kind
 pKind = makeExprParser pAtom ops
   where
     ops = [[InfixR (KFunc <$ symbol "->")]]
-    pAtom = choice [KStar 1 <$ symbol "Type1", KStar 2 <$ symbol "Type2", KStar 3 <$ symbol "Type3"]
+    pAtom = choice [parens pKind, KStar 1 <$ symbol "Type1", KStar 2 <$ symbol "Type2", KStar 3 <$ symbol "Type3"]
 
 -- Not supplying a multiplicity is inferred to be Many (unrestricted).
 pMult :: Parser Mult
