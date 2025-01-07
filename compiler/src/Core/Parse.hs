@@ -41,13 +41,14 @@ pExpr = makeExprParser pApps ops
 
     pTyRhs = do
       symbol "@"
-      rhs <- pType
+      rhs <- pTypeAtom
       pure $ \lhs -> ETyApp lhs rhs
 
     pAtom =
       choice
         [ pLam,
           pTyLam,
+          pTyLet,
           pLet,
           pLetRec,
           pLetPair,
@@ -71,6 +72,16 @@ pExpr = makeExprParser pApps ops
       x <- pIdent
       symbol "."
       ETyLam x <$> pExpr
+
+    pTyLet = do
+      symbol "type"
+      x <- pIdent
+      symbol "::"
+      k <- pKind
+      symbol "="
+      a <- pType
+      symbol ";"
+      ETyLet x k a <$> pExpr
 
     pLet = try $ do
       symbol "let"
@@ -137,12 +148,18 @@ pTypeAno = do
   pType
 
 pType :: Parser Type
-pType = makeExprParser pAtom ops
+pType = makeExprParser pApps ops
   where
     ops = [[InfixR (TFunc Many <$ symbol "->"), InfixR (TFunc One <$ symbol "-o")]]
 
-    pAtom = choice [pForall, pProd, TName <$> pIdent, parens pType]
+    pApps = do
+      a <- pTypeAtom
+      bs <- many pTypeAtom
+      pure $ foldl TApp a bs
 
+pTypeAtom :: Parser Type
+pTypeAtom = choice [pLam, pForall, pProd, TName <$> pIdent, parens pType]
+  where
     pForall = do
       symbol "∀"
       x <- pIdent
@@ -158,8 +175,17 @@ pType = makeExprParser pAtom ops
       r <- pMult
       TProd q a r <$> pType
 
+    pLam = do
+      symbol "λ"
+      x <- pIdent
+      symbol "."
+      TLam x <$> pType
+
 pKind :: Parser Kind
-pKind = choice [KStar 1 <$ symbol "Type1", KStar 2 <$ symbol "Type2", KStar 3 <$ symbol "Type3"]
+pKind = makeExprParser pAtom ops
+  where
+    ops = [[InfixR (KFunc <$ symbol "->")]]
+    pAtom = choice [KStar 1 <$ symbol "Type1", KStar 2 <$ symbol "Type2", KStar 3 <$ symbol "Type3"]
 
 -- Not supplying a multiplicity is inferred to be Many (unrestricted).
 pMult :: Parser Mult
@@ -179,7 +205,7 @@ parens = between (symbol "(") (symbol ")")
 -- Utilities for lexing.
 
 reserved :: [String]
-reserved = ["let", "rec", "λ", "Λ", "if", "then", "else"]
+reserved = ["let", "rec", "λ", "Λ", "if", "then", "else", "type"]
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc

@@ -12,6 +12,8 @@ data Type
   | TFunc Mult Type Type -- Function types.
   | TProd Mult Type Mult Type -- Product types, each side with its multiplicity.
   | TForall Kind (Type -> Type) -- Universal quantification.
+  | TLam (Type -> Type)
+  | TApp Type Type
 
 -- Expressions.
 data Expr

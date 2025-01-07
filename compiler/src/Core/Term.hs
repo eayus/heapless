@@ -25,6 +25,8 @@ data Type
   | TFunc Mult Type Type -- Function types.
   | TProd Mult Type Mult Type -- Product types, each side with its multiplicity.
   | TForall Kind Type -- Universal quantification.
+  | TLam Type
+  | TApp Type Type
   deriving (Eq, Show)
 
 -- Primitive operations.
@@ -47,6 +49,7 @@ data Expr
   | EApp Type Type Expr Expr -- Function application. A, B, Expr (A -> B), Expr A.
   | ETyLam Expr -- Type abstraction (capital lambda).
   | ETyApp Expr Type -- Type application (instantiation).
+  | ETyLet Kind Type Expr -- Type alias.
   | ELet Mult Type Expr Expr -- Let biniding (non-recursive).
   | ELetRec Type Expr Expr -- Recursive let binding.
   | ELetPair Mult Type Type Expr Expr -- Pair destructuring via let binding (non-recursive).

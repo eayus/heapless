@@ -14,7 +14,7 @@ import Core.Term qualified as T
 import Data.HashMap.Strict qualified as M
 
 data Ctxt = Ctxt
-  { typeVars :: [(S.Ident, S.Kind)],
+  { typeVars :: [(S.Ident, (V.Type, S.Kind))],
     exprVars :: [(S.Ident, V.Type)]
   }
 
@@ -78,6 +78,11 @@ inferExpr = \case
         va <- evalType a'
         pure (f va, T.ETyApp t' a')
       _ -> throwError "Can't type apply a which is not polymorphic"
+  S.ETyLet x k a t -> do
+    a' <- checkType a k
+    a'' <- evalType a'
+    (b, t') <- letType x k a'' $ inferExpr t
+    pure (b, T.ETyLet k a' t')
   S.ELet q x a t u -> do
     a' <- mapM (fmap snd . inferType) a
     va <- mapM evalType a'
@@ -106,19 +111,19 @@ inferExpr = \case
   t@(S.EPair {}) -> throwError $ "Can't infer the type for the pair " ++ show t
   S.EBin op t u -> case op of
     S.Add -> choice $ do
-      k <- [minBound..maxBound]
+      k <- [minBound .. maxBound]
       pure $ do
         t' <- checkExpr t $ V.TPrim $ T.TInt k
         u' <- checkExpr u $ V.TPrim $ T.TInt k
         pure (V.TPrim $ T.TInt k, T.EPrim $ T.PAdd t' u')
     S.Sub -> choice $ do
-      k <- [minBound..maxBound]
+      k <- [minBound .. maxBound]
       pure $ do
         t' <- checkExpr t $ V.TPrim $ T.TInt k
         u' <- checkExpr u $ V.TPrim $ T.TInt k
         pure (V.TPrim $ T.TInt k, T.EPrim $ T.PSub t' u')
     S.Eql -> choice $ do
-      k <- [minBound..maxBound]
+      k <- [minBound .. maxBound]
       pure $ do
         t' <- checkExpr t $ V.TPrim $ T.TInt k
         u' <- checkExpr u $ V.TPrim $ T.TInt k
@@ -189,12 +194,13 @@ inferType = \case
   S.TName x | Just p <- isPrimType x -> pure (S.KStar 0, T.TPrim p)
   S.TName x -> do
     vars <- asks typeVars
-    (k, l) <- lookupVar x vars
+    ((_, k), l) <- lookupVar x vars
     pure (k, T.TVar l)
   S.TFunc q a b -> do
-    (ka, a') <- inferType a
-    (kb, b') <- inferType b
-    pure (min (max (succ ka) kb) (S.KStar 3), T.TFunc q a' b')
+    (oa, a') <- checkTypeStar a
+    (ob, b') <- checkTypeStar b
+    let o = min (max (succ oa) ob) 3
+    pure (S.KStar o, T.TFunc q a' b')
   S.TProd q a p b -> do
     -- TODO: For now, only basic types can appear in pairs, but this restriction can be lifted.
     a' <- checkType a $ S.KStar 1
@@ -203,6 +209,19 @@ inferType = \case
   S.TForall x k a -> do
     (_, a') <- bindType x k $ inferType a
     pure (S.KStar 3, T.TForall k a')
+  S.TLam {} -> throwError "Can't infer kind for type level lambda"
+  S.TApp a b ->
+    inferType a >>= \case
+      (S.KFunc k k', a') -> do
+        b' <- checkType b k
+        pure (k', T.TApp a' b')
+      _ -> throwError "Can't type-level apply a term with a non function kind"
+
+checkTypeStar :: S.Type -> TC (Int, T.Type)
+checkTypeStar a =
+  inferType a >>= \case
+    (S.KStar o, a') -> pure (o, a')
+    _ -> throwError "Expected type of kind star"
 
 isPrimType :: S.Ident -> Maybe T.PrimType
 isPrimType = \case
@@ -215,16 +234,21 @@ isPrimType = \case
   "Unit" -> Just T.TUnit
   _ -> Nothing
 
+subKind :: S.Kind -> S.Kind -> Bool
+subKind (S.KStar o) (S.KStar o') = o <= o'
+subKind k k' = k == k'
+
 checkType :: S.Type -> S.Kind -> TC T.Type
+checkType (S.TLam x a) (S.KFunc k k') = T.TLam <$> bindType x k (checkType a k')
+checkType (S.TLam {}) _ = throwError "Type level lambda must have function kind"
 checkType a k = do
   (k', a') <- inferType a
-  unless (k >= k') $ throwError $ "Kind mismatch between " ++ show k ++ " and " ++ show k'
+  unless (subKind k' k) $ throwError $ "Kind mismatch between " ++ show k ++ " and " ++ show k'
   pure a'
 
 evalType :: T.Type -> TC V.Type
 evalType a = do
-  len <- asks (length . typeVars)
-  let env = map V.TVar $ reverse [0 .. len - 1]
+  env <- asks (map (fst . snd) . typeVars)
   pure $ E.evalType env a
 
 reifyType :: V.Type -> TC T.Type
@@ -247,7 +271,14 @@ bindType :: S.Ident -> S.Kind -> TC a -> TC a
 bindType x k m = do
   names <- asks (map fst . typeVars)
   when (x `elem` names) $ throwError $ "Type variable " ++ show x ++ " is shadowed"
-  local (\ctxt -> ctxt {typeVars = (x, k) : typeVars ctxt}) m
+  let l = length names
+  local (\ctxt -> ctxt {typeVars = (x, (V.TVar l, k)) : typeVars ctxt}) m
+
+letType :: S.Ident -> S.Kind -> V.Type -> TC a -> TC a
+letType x k a m = do
+  names <- asks (map fst . typeVars)
+  when (x `elem` names) $ throwError $ "Type variable " ++ show x ++ " is shadowed"
+  local (\ctxt -> ctxt {typeVars = (x, (a, k)) : typeVars ctxt}) m
 
 lookupVar :: S.Ident -> [(S.Ident, a)] -> TC (a, Int)
 lookupVar x = \case

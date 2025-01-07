@@ -1,0 +1,7 @@
+λw.
+    type Dup :: Type1 -> Type1 = λ A. (A, A);
+
+    let dup : ∀ A :: Type1. A -> Dup A =
+        Λ A. λ x. (x, x);
+
+    w

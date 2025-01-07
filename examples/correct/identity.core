@@ -1,5 +1,4 @@
 λ w0.
-
     let id : ∀ A :: Type3. A -o A =
         Λ A. λx. x;
 
