@@ -1,5 +1,5 @@
 λ w0.
     let 1 (w1, n) = #readInt[w0];
     let 1 (w2, m) = #readInt[w1];
-    let l = n + m;
-    #printInt[l, w2]
+    let k = n + m;
+    #printInt[k, w2]

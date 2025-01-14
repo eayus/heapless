@@ -8,6 +8,7 @@ import Core.Uncurry
 import LL.Codegen
 import System.Environment
 import System.Process
+import Text.Pretty.Simple
 import UC.LambdaLift
 import UC.Name
 
@@ -23,27 +24,27 @@ go = do
   expr <- parseFile filepath
 
   core <- typecheck expr
-  lift $ putStrLn "\ncore"
-  lift $ print core
+  -- lift $ putStrLn "\ncore"
+  -- lift $ print core
 
   let core' = partialEval core
-  lift $ putStrLn "\ncore'"
-  lift $ print core'
+  -- lift $ putStrLn "\ncore'"
+  -- lift $ pPrint core'
 
   let uc = ucNf core'
-  lift $ putStrLn "\nuc"
-  lift $ print uc
+  -- lift $ putStrLn "\nuc"
+  -- lift $ pPrint uc
 
   let uc' = nameMain uc
-  lift $ putStrLn "\nuc'"
-  lift $ print uc'
+  -- lift $ putStrLn "\nuc'"
+  -- lift $ pPrint uc'
 
   let ll = llMain uc'
-  lift $ putStrLn "\nll"
-  lift $ print ll
+  -- lift $ putStrLn "\nll"
+  -- lift $ pPrint ll
 
   rust <- lift $ cgProg ll
-  lift $ putStrLn rust
+  -- lift $ putStrLn rust
   -- lift $ putStrLn "\n\nOK :)"
 
   lift $ do

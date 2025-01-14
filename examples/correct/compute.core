@@ -1,0 +1,3 @@
+λ w0.
+    let 1 (w1, n) = #readInt[w0];
+    #printInt[n, w1]

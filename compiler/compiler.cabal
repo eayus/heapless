@@ -42,6 +42,7 @@ executable compiler
     main-is: Main.hs
     build-depends:
         compiler,
+        pretty-simple,
 
 test-suite test
     import: config

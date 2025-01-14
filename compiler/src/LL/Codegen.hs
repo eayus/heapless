@@ -1,6 +1,6 @@
 module LL.Codegen where
 
-import Core.Term (Prim (..), PrimType (..), IntSize (..))
+import Core.Term (IntSize (..), Prim (..), PrimType (..))
 import Data.List
 import LL.Term
 import UC.Term (Type (..))
@@ -22,8 +22,8 @@ cg = \case
     PAdd t u -> t ++ "+" ++ u
     PSub t u -> t ++ "-" ++ u
     PEql t u -> t ++ "==" ++ u
-    PReadInt _ -> "read_int()"
-    PPrintInt t _ -> "print_int(" ++ t ++ ")"
+    PReadInt w -> "read_int(" ++ w ++ ")"
+    PPrintInt t w -> "print_int(" ++ t ++ ", " ++ w ++ ")"
     PBool b -> if b then "true" else "false"
     PInt n -> show n
     PUnit -> "()"
