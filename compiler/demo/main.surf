@@ -1,5 +1,0 @@
-main :: IO ()
-main = do
-  k <- readInt
-  n <- readInt
-  replicateM n (printInt k)
