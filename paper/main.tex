@@ -53,7 +53,7 @@ Edwin Brady \orcidID{0000-0002-9734-367X}}
 \maketitle              % typeset the header of the contribution
 %
 \begin{abstract}
-Typed functional programming languages like Haskell and OCaml make heavy use of the heap at run-time. This makes them largely unsuitable for \emph{systems programming}, where resources are limited and programs are often expected to run on bare-metal. This paper demonstrates how a (slightly restricted) high-level, pure, functional language can be compiled to machine code which does not use the heap at all. Despite usually requiring a heap at run-time, features such as higher-order functions, polymorphism and typeclasses are all supported by the surface language. This is made possible through \emph{partial evaluation} \cite{jones1993partial}: by carefully reducing the program at compile-time, we can eliminate these high-level features entirely, resulting in a residual program which is trivial to compile. This paper describes the operation of this partial evaluator in detail, and introduces a novel type system which guarantees that the partial evaluator will always succeed in removing all heap-using features.
+Typed functional programming languages like Haskell and OCaml make heavy use of the heap at run-time. This makes them largely unsuitable for \emph{systems programming}, where resources are limited and programs are often expected to run on bare-metal. This paper demonstrates how a (slightly restricted) high-level, pure, functional language can be compiled to machine code which does not use the heap at all. Despite usually requiring a heap at run-time, features such as higher-order functions, polymorphism and typeclasses are all supported by the surface language. This is made possible through \emph{partial evaluation} \cite{jones1993partial}: by carefully reducing the program at compile-time, we can eliminate these high-level features entirely, resulting in a residual program which is trivial to compile to stack-based machine code. This paper describes the operation of this partial evaluator in detail, and introduces a novel type system which guarantees that the partial evaluator will always succeed in removing all heap-using features.
 
 % and shows how it can be implemented efficiently using an algorithm based on NbE. To demonstrate the practicality of this approach, we give several high-level example programs which can be compiled using this method.
 \end{abstract}
@@ -62,7 +62,7 @@ Typed functional programming languages like Haskell and OCaml make heavy use of 
 %
 \section{Introduction}
 
-At the core of most functional languages is a set of high-level features including higher-order functions, polymorphism and algebraic data types. Most of the time these features are a boon: they allow the programmer to write concise, maintainable, readable code. However, all of these features typically require a heap at run-time. This is problematic if we want to use functional languages for \emph{systems programming}, where it is common to target environments with extremely limited resources. Consider the following Haskell program:
+At the core of most functional languages is a set of high-level features including higher-order functions, polymorphism and algebraic data types. Most of the time these features are a boon: they allow the programmer to write concise, maintainable, readable code. However, all of these features typically require a heap at run-time. This is problematic if we want to use functional languages for \emph{systems programming}, where it is common to target environments with limited resources and real time constraints. Consider the following Haskell program:
 
 \begin{minted}{Haskell}
 main :: IO ()
@@ -74,7 +74,7 @@ main = do
 
 While this program may appear simple, it implicitly makes use of a wide variety of high-level (heap-using) features. Alone, using \mintinline{Haskell}{do}-notation requires typeclasses (to resolve the \mintinline{Haskell}{Monad} instance), higher-order functions (for the implicit calls to \mintinline{Haskell}{>>=}) and polymorphism (also for \mintinline{Haskell}{>>=})! It is clear that every non-trivial Haskell program will use the heap in some capacity -- features such as higher-order functions are too ubiquitous to avoid. Does this mean that high-level functional programming is entirely reliant on the heap? This paper demonstrates that this is not the case.
 
-Reconsider our example from a computational perspective: it is unclear why a program which adds two integers should need a heap at all! In this case, features such as typeclasses and higher-order functions are only abstractions for the programmer; they are not adding any real computational value. We show that most of the time we can actually use these abstractions for free. Through careful manipulation at compile-time, it is possible to transform a large class of high-level functional programs into equivalent low-level programs which do not require the heap at all. We make use of the type system to restrict input programs, ensuring that this transformation is always possible. Compiling a desugared version of the earlier example with our prototype implementation produces identical machine code to the following Rust program\footnote{We are assuming that \mintinline{Haskell}{readInt} and \mintinline{Haskell}{readInt} are externally defined primitives in both code snippets.}.
+Reconsider our example from a computational perspective: it is unclear why a program which adds two integers should need a heap at all! In this case, features such as typeclasses and higher-order functions are only abstractions for the programmer; they are not adding any real computational value. We show that most of the time we can actually use these abstractions for free. Through careful partial evaluation at compile-time, it is possible to transform a large class of high-level functional programs into equivalent low-level programs which do not require the heap at all. We make use of the type system to restrict input programs, ensuring that this transformation is always possible. Compiling a desugared version of the earlier example with our prototype implementation produces identical machine code to the following Rust program\footnote{We are assuming that \mintinline{Haskell}{readInt} and \mintinline{Haskell}{printInt} are externally defined primitives in both code snippets.}.
 
 \begin{minted}{Rust}
 fn main() {
@@ -91,14 +91,14 @@ The goal of this paper is to describe a method for designing and implementing hi
 We focus on the design and implementation of a core language \core{}, which aims to be an elaboration target for high-level strict functional languages. Specifically, we make the following contributions:
 
 \begin{itemize}
-  \item We define a polymorphic, higher-order core language \core{} which serves as an elaboration target for surface languages. \core{} has a novel type system which guarantees that it can be compiled to stack-based code.
+  \item We define a strict, polymorphic, higher-order core language \core{} which serves as an elaboration target for surface languages. \core{} has a novel type system which guarantees that it can be compiled to stack-based code.
 
-  \item We describe a pipeline which compiles \core{} programs down to machine code. We primarily focus on how partial evaluation can be used eliminate \core{}'s high-level features (higher-order functions, polymorphism) at compile-time. 
+  \item We describe a pipeline which compiles \core{} programs down to machine code. We primarily focus on how partial evaluation can be used to eliminate all of \core{}'s high-level features (higher-order functions, polymorphism) at compile-time. 
   
-  \item We describe how one could build a practical surface language on top of \core{}. We cover how common features such as typeclasses (incl. monads), implicit polymorphism and data types can be implemented.
+  \item We informally describe how one could build a practical surface language on top of \core{}. We cover how common features such as typeclasses (incl. monads), implicit polymorphism and data types can be implemented.
 \end{itemize}
 
-We have implemented a prototype for the approach described in this paper, whose source code is publicly available\footnote{\url{https://github.com/eayus/heapless}}.
+We have implemented a prototype for the approach described in this paper, whose source code is publicly available\footnote{Download link: \url{https://github.com/eayus/heapless}}.
 
 \section{Core Language}
 
@@ -106,7 +106,7 @@ We have implemented a prototype for the approach described in this paper, whose 
 
 \subsection{Outline}
 
-This section will define the core language \core{} and describe how it can be compiled to stack-based machine code. The compilation process from \core{} to machine code is broken down into several distinct steps:
+This section will define the core language \core{} and describe how it can be compiled to stack-based machine code. The compilation process from \core{} to machine code is broken down into several distinct steps (occuring in the following order):
 
 \begin{enumerate}
   \item Partial Evaluation
@@ -117,7 +117,7 @@ This section will define the core language \core{} and describe how it can be co
 
 At the core of our approach lies a \emph{partial evaluator}. By carefully performing reductions on the input program at compile-time, we can completely eliminate high-level features such as higher-order functions (HOFs) and polymorphism. By eliminating these features at compile-time, we no longer need to deal with the problem of representing them at run-time. The result of partial evaluation is therefore a program written in a very restricted subset of \core{}, greatly simplifying the rest of the compilation process. So that we can guarantee that partial evaluation will eliminate all occurences of these high-level features, we slightly restrict \core{} programs through the type system. These extra/augmented rules will be justified in detail throughout the remainder of this section.
 
-After partial evaluation, we follow up with two auxiliary source-to-source transformations: uncurrying and lambda lifting. These steps remove curried and nested functions respectively, and are implemented using relatively standard algorithms. Unlike standard approaches to uncurrying \cite{hannan1998higher}, the type system and partial evaluator guarantee that the input is in a restricted form where function definitions are maximally $\eta$-expanded and there are no partial applications. This greatly simplifies the process, resulting in a trivial algorithm. Our approach to lambda lifting is entirely standard, and ultimately the choice of algorithm is irrelevant. Quadratic-time algorithms have been specified in detail in existing literature \cite{morazan2008optimal}.
+After partial evaluation, we follow up with two auxiliary source-to-source transformations: uncurrying and lambda lifting. These steps remove curried and nested functions respectively, and are implemented using well-studied algorithms. Unlike standard approaches to uncurrying \cite{hannan1998higher}, the type system and partial evaluator guarantee that the input is in a restricted form where function definitions are maximally $\eta$-expanded and there are no partial applications, which greatly simplifies the process. Our approach to lambda lifting is entirely standard, and ultimately the choice of algorithm is irrelevant. Quadratic-time algorithms have been specified in detail in existing literature \cite{morazan2008optimal}.
 
 Finally, the result of lambda lifting is compiled to machine code. At this point in the pipeline the language is extremely restricted, with only first-order top-level function definitions remaining. Compilation is therefore trivial using standard techniques for first-order languages -- our sample implementation uses a straightforward conversion to Rust \cite{klabnik2023rust} to complete the compilation process.
 
@@ -194,7 +194,7 @@ The most unusual part of the type system is the kind $\star_o$, indexed by an \t
    \item[$\star_3$] Everything else, including higher-order function types and types using universal quantification.
 \end{description}
 
-Intuitively, the kinds form a hierarchy where kinds with a higher number are more lenient in the types they allow. This hierachy is realised through the sub-typing rule for kinds \textsc{kind-sub}, meaning each kind is included in the one above.
+Intuitively, the kinds form a hierarchy where kinds with a higher number are more permissive in the types they allow. This hierachy is realised through the sub-typing rule for kinds \textsc{kind-sub}, meaning each kind is included in the one above.
 
 \begin{figure}[h]
 
@@ -265,15 +265,15 @@ Intuitively, the kinds form a hierarchy where kinds with a higher number are mor
 
     \inferrule[type-let-prod]
       {\Gamma \vdash e_1 : \tau_1 \times \tau_2 \\ \Gamma , x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}
-      {\Gamma \vdash ($\texttt{let $\langle x , y \rangle = e_1 $ in $e_2$} $) : \tau_3}
+      {\Gamma \vdash ($\texttt{let $\langle x , y \rangle = e_1 $ in $e_2$}$) : \tau_3}
 
     \inferrule[type-let]
-      {\Gamma \vdash e_1 : \tau_1 \\ \Gamma , x : \tau_1 \vdash e_2 : \tau_2 \\ \Gamma \vdash \tau_1 :: \star_2}
-      {\Gamma \vdash ($\texttt{let $x = e_1 $ in $e_2$} $) : \tau_2}
+      {\Gamma \vdash e_1 : \tau_1 \\ \Gamma , x : \tau_1 \vdash e_2 : \tau_2}
+      {\Gamma \vdash ($\texttt{let $x = e_1 $ in $e_2$}$) : \tau_2}
 
     \inferrule[type-let-rec]
-      {\Gamma , x : \tau_1 \vdash e_1 : \tau_1 \\ \Gamma , x : \tau_1 \vdash e_2 : \tau_2}
-      {\Gamma \vdash ($\texttt{let rec $x = e_1 $ in $e_2$} $) : \tau_2}
+      {\Gamma , x : \tau_1 \vdash e_1 : \tau_1 \\ \Gamma , x : \tau_1 \vdash e_2 : \tau_2 \\ \Gamma \vdash \tau_1 :: \star_2}
+      {\Gamma \vdash ($\texttt{let rec $x = e_1 $ in $e_2$}$) : \tau_2}
 
     \inferrule[type-if]
       {\Gamma \vdash e_b : \texttt{Bool} \\ \Gamma \vdash e_t : \tau \\ \Gamma \vdash e_f : \tau}
@@ -286,7 +286,7 @@ Intuitively, the kinds form a hierarchy where kinds with a higher number are mor
   \label{fig:type-system}
 \end{figure}
 
-Most of the rules are straightforward, however some of the rules require some special attention. In general, types with a high order should be \emph{contagious}, meaning that if they are used as a component of a composite type, then the composite type should also have a kind with a high order. For example, a product type where one of the elements is a higher order function (of kind $\star_3$) must also be considered higher order, and hence be given the kind $\star_3$. Formally, we represent this in the typing rules as taking the maximum of two orders (see $max$ in \textsc{kind-prod} and \textsc{kind-arrow}). The typing rule \textsc{type-let-rec} makes use of the kinding information attached to types to enforce that recursive functions must not be higher-order -- the justification behind this rule is described in detail in \ref{sec:recursion}.
+Most of the rules are straightforward, however some of the rules require some special attention. In general, types with kind $\star_3$ should be \emph{contagious}, meaning that if they are used as a component of a composite type, then the composite type should also have kind $\star_3$. For example, a product type where one of the elements is a higher order function (of kind $\star_3$) must also be considered higher order, and hence be given the kind $\star_3$. Formally, we represent this in the typing rules as taking the maximum of two orders (see $max$ in \textsc{kind-prod} and \textsc{kind-arrow}). The typing rule \textsc{type-let-rec} makes use of the kinding information attached to types to enforce that recursive functions are not higher-order and do not use universal quantification in their type -- the justification behind this rule is described in detail in Section \ref{sec:recursion}.
 
 
 \subsection{Handling IO}
@@ -300,7 +300,7 @@ Note that the typing rules presented in this paper do not enforce the linearity 
 
 \subsection{Rules}
 
-We characterise the partial evaluator by a set of reduction rules. The notation $t \leadsto u$ means that subterms matching the pattern $t$ should be replaced with $u$ during partial evaluation. Unless specified otherwise, there are no restrictions on where these reductions can take place, meaning that we reduce under binders by default. There is no stipulation on the order that reductions should take place, as the rules are always designed to preserve confluence. Occasionally, rules may have an attached side-condition which restricts when the rule should be applied -- this means the rules may not form a true \emph{rewriting system}\cite{jay1991long}, but we borrow the notation and terminology for conciseness.
+We characterise the partial evaluator by a set of source-to-source reduction rules on \core{}. The notation $t \leadsto u$ means that subterms matching the pattern $t$ should be replaced with $u$ during partial evaluation. Unless specified otherwise, there are no restrictions on where these reductions can take place, meaning that we reduce under binders by default. Occasionally, rules may have an attached side-condition which restricts when the rule should be applied -- this means the rules may not form a true \emph{rewriting system}\cite{jay1991long}, but we borrow the notation and terminology for conciseness.
 
 Figures \ref{fig:pe-type-rules} and \ref{fig:pe-expr-rules} detail the partial evaluator's reduction rules for types and expressions respectively.
 
@@ -325,10 +325,10 @@ Figures \ref{fig:pe-type-rules} and \ref{fig:pe-expr-rules} detail the partial e
 
   \begin{minipage}[c]{\textwidth}
     \begin{align*}
-      e &\leadsto \lambda x. e\ x \hskip 0.5cm \text{if $e : \tau_1 \rightarrow \tau_2$} \textit{\hskip 0.5cm\scriptsize ($\eta$)}\\
+      e_1 &\leadsto \lambda x. e_1\ x \hskip 0.5cm \text{if $e_1 : \tau_1 \rightarrow \tau_2$, $e_1$ is not a $\lambda$ abstraction} \textit{\hskip 0.5cm\scriptsize ($\eta$)}\\
       (\lambda x. e_1) e_2 &\leadsto e_1[x \mapsto e_2]  \textit{\hskip 0.5cm\scriptsize ($\beta$)}\\
       \texttt{(if $e_1$ then $e_2$ else $e_3$) $e_4$} &\leadsto \texttt{if $e_1$ then $e_2$ $e_4$ else $e_3$ $e_4$}\textit{\hskip 0.5cm\scriptsize (if-distr)} \\
-      \texttt{let $x$ = $e_1$ in $e_2$} &\leadsto e_2[x \mapsto e_1] \hskip 0.5cm \text{if $e_1$ is higher-order} \textit{\hskip 0.5cm\scriptsize (let-inl)} \\
+      \texttt{let $x$ = $e_1$ in $e_2$} &\leadsto e_2[x \mapsto e_1] \hskip 0.5cm \text{if $e_1$ is higher-order} \textit{\hskip 0.5cm\scriptsize (let-inline)} \\
       \texttt{(let $x$ = $e_1$ in $e_2$) $e_3$} &\leadsto \texttt{let $x$ = $e_1$ in $e_2$ $e_3$}\textit{\hskip 0.5cm\scriptsize (let-distr)} \\
       \texttt{(let rec $x$ = $e_1$ in $e_2$) $e_3$} &\leadsto \texttt{let rec $x$ = $e_1$ in $e_2$ $e_3$}\textit{\hskip 0.5cm\scriptsize (let-rec-distr)} \\
       \texttt{(let $\langle x , y \rangle$ = $e_1$ in $e_2$) $e_3$} &\leadsto \texttt{let $\langle x , y \rangle$ = $e_1$ in $e_2$ $e_3$}\textit{\hskip 0.5cm\scriptsize (let-prod-distr)} \\
@@ -342,7 +342,7 @@ Figures \ref{fig:pe-type-rules} and \ref{fig:pe-expr-rules} detail the partial e
 
 \subsection{Elimination}
 
-Ultimately, the partial evaluator removes high-level features by applying the appropriate elimination rule. For example, higher-order functions are eliminated through $\beta$-reduction; polymorphic functions are eliminated through monomorphisation. Almost all of the other rules are there to facilitate these eliminators by rewriting expressions into a form which is more amenable to further reduction. The most straightforward example of a ``facilitating rule'' is let-inlining (\textit{let-inl}). Consider the following expression (assume $g$ is a free variable of the appropriate type):
+Ultimately, the partial evaluator removes high-level features by applying the appropriate elimination rule. For example, higher-order functions are eliminated through $\beta$-reduction (\textit{\scriptsize $\beta$}); polymorphic functions are eliminated through monomorphisation (\textit{\scriptsize mono}). Almost all of the other rules are there to facilitate these eliminators by rewriting expressions into a form which is more amenable to further reduction. The most straightforward example of a ``facilitating rule'' is let-inlining (\textit{\scriptsize let-inline}). Consider the following expression (assume $g$ is a free variable of the appropriate type):
 
 \begin{equation*}
   \begin{split}
@@ -361,23 +361,24 @@ The same idea applies to polymorphic functions which quantify over type variable
 
 \subsection{Distribution} \label{sec:distribution}
 
-We must be careful that other constructs in the core language do not interfere with the elimination of high-level features such as higher-order functions and polymorphism. Specifically, language constructs satisfying all of the following criteria must be paid extra attention:
+We must be careful that other constructs in the core language do not interfere with the elimination of high-level features such as higher-order functions and polymorphism. For constructs which are around at run-time but also allow higher-order functions as a sub-expression, we must introduce an extra rule to \emph{distribute} function applications inside the construct.
 
-\begin{itemize}
-  \item The construct is supported at run-time and may appear in the residual program.
-  \item The construct can have a higher-order type if a higher-order function is used as direct sub-expression of the construct.
-\end{itemize}
 
-Intuitively, the reasoning behind this criteria is that a higher-order function may get ``stuck'' as a sub-expression of the construct -- if the construct may appear in the residual program, it is possible that the higher-order function will never get reduced and eliminated.
+% \begin{itemize}
+%   \item The construct is supported at run-time and may appear in the residual program.
+%   \item The construct can have a higher-order type if a higher-order function is used as direct sub-expression of the construct.
+% \end{itemize}
 
-There are two constructs satisfying this criteria: if-expressions and let-bindings (of all forms). The rules for distribution are explained in the following subsections.
+% Intuitively, the reasoning behind this criteria is that a higher-order function may get ``stuck'' as a sub-expression of the construct -- if the construct may appear in the residual program, it is possible that the higher-order function will never get reduced and eliminated.
+
+% There are two constructs satisfying this criteria: if-expressions and let-bindings (of all forms). The rules for distribution are explained in the following subsections.
 
 \subsubsection{If-Expressions}
 
 If-expressions allow any type of data in their branches as long as both branches have the same type. We therefore should consider what happens if both branches contain higher-order functions, like in the following expression:
 
 \begin{equation*}
-  \texttt{(if $e_0$ then $\lambda x. e_1$ else $\lambda y. e_2$) $\lambda z. e_3$}
+  \texttt{(if $e_1$ then $e_2$ else $e_3$) ($\lambda x. e_4$)}
 \end{equation*}
 
 With just $\beta$-reduction, there is no way to make progress, yet higher-order functions still remain in the residual program! One might try adding extra reduction rules for \texttt{if}:
@@ -389,10 +390,10 @@ With just $\beta$-reduction, there is no way to make progress, yet higher-order 
   \end{split}
 \end{equation*}
 
-However, if $e_0$ is a free variable (whose value may not be known until run-time), then we are still stuck. Instead, we add the rule \textit{if-distr} which distributes applications into the branches of the \texttt{if}. The higher-order functions can then be $\beta$-reduced and eliminated, leaving the following residual expression:
+However, if $e_0$ is a free variable (whose value may not be known until run-time), then we are still stuck. Instead, we add the rule \textit{\scriptsize if-distr} which distributes applications into the branches of the \texttt{if}. After applying this rule, we are left with the following residual expression:
 
 \begin{equation*}
-  \texttt{if $e_0$ then $e_1$ else $e_2$}
+  \texttt{if $e_1$ then $e_2\ (\lambda x. e_4)$ else $e_3\ (\lambda x. e_4)$}
 \end{equation*}
 
 \subsubsection{Let Bindings}
@@ -403,7 +404,7 @@ Our rule for inlining let-bindings covers the case when the bound expression is 
   \texttt{(let $n$ = $0$ in $\lambda f. e_1$) $\lambda x. e_2$}
 \end{equation*}
 
-The partial evaluator will not inline the \texttt{let} as it does not bind a higher-order term to avoid code duplication. We are once again stuck, with no way to $\beta$-reduce the higher-order function bound in the body of the \texttt{let}. The solution is analogous to the one for if-expressions: introduce a rule which distributes applications inside the \texttt{let}'s body. The rules \textit{let-distr}, \textit{let-rec-distr} and \textit{let-prod-distr} implement this behaviour for the various types of let-bindings.
+The partial evaluator will not inline the \texttt{let} as it does not bind a higher-order term to avoid code duplication. We are once again stuck, with no way to $\beta$-reduce the higher-order function bound in the body of the \texttt{let}. The solution is analogous to the one for if-expressions: introduce a rule which distributes applications inside the \texttt{let}'s body. The rules \textit{\scriptsize let-distr}, \textit{\scriptsize let-rec-distr} and \textit{\scriptsize let-prod-distr} implement this behaviour for the various types of let-bindings.
 
 
 \subsection{Recursion} \label{sec:recursion}
@@ -414,7 +415,7 @@ In general, any rule which indiscriminantly unfolds recursion (i.e. \texttt{let 
 
 To resolve this, we introduce the following simple restriction: \emph{recursive functions must not be higher-order}. This is realised through the kind system, where the typing rule \textsc{type-let-rec} requires that the type of the recursive definition must have kind $\star_2$. The reason why we use the kind system to enforce this rather than a syntactic check is explained in Section \ref{sec:polymorphism}.
 
-With this set up, no problematic reduction rules are needed for unfolding recursion, as we can only bind first-order functions (which are easy to compile). However, this restrction does seem impractical: plenty of useful functions are both higher-order and recursive! Fortunately there is a systematic transformation that we can make to the majority of these functions, which will allow them to be accepted by the type system. More precisely, we can try to extract out the recursive part of the function into a local definition which is first-order. As an example, suppose we wanted to write the following function:
+With this set up, no problematic reduction rules are needed for unfolding recursion, as we can only bind first-order functions (which are easy to compile). However, this restrction does seem impractical: plenty of useful functions are both higher-order and recursive! Fortunately, we can easily rewrite the majority of these functions in a equivalent way which is accepted by the type system. More precisely, we can try to extract out the recursive part of the function into a local definition which is first-order. As an example, suppose we wanted to write the following function:
 
 \begin{minted}{Haskell}
 nTimes :: Int -> (Int -> Int) -> (Int -> Int)
@@ -433,13 +434,13 @@ nTimes n f = go n
     go m x = f (go (m - 1) x)
 \end{minted}
 
-The local definition \texttt{go} is recursive but not higher-order, while the exposed outer definition \texttt{nTimes} is higher-order but not recursive.
+The local definition \texttt{go} is recursive but not higher-order, while the exposed outer definition \texttt{nTimes} is higher-order but not recursive. To achieve this, the function \texttt{go} captures the function \texttt{f}, but does not have it as a parameter -- when used, the function \texttt{nTimes} will be inlined, and the function $f$ also inlined into the body of $\texttt{go}$. The result is a first-order program.
 
 It is possible to do this refactoring for the majority of higher-order functions. Precisely, as long as the functional argument (in this case, \texttt{f :: a -> b}) remains constant throughout all recursive calls, the refactoring is possible and straightforward\footnote{A practical compiler might choose to perform this refactoring automatically.}.
 
 \subsection{Polymorphism} \label{sec:polymorphism}
 
-Another trademark feature of modern functional programming languages is \emph{polymorphism}. So that one function can operate on many different types of data, most functional languages use a uniform representation for all data -- a pointer to a heap allocated cell. Polymorphic functions can then indiscriminantly treat all inputs in the same way, regardless of type. Since this is not an option without a heap, we use a variant of the other predominant method: \emph{monomoprhisation}. This is realised through the \textit{mono} rule in the partial evaluator.
+Another trademark feature of modern functional programming languages is \emph{polymorphism}. So that one function can operate on many different types of data, most functional languages use a uniform representation for all data -- a pointer to a heap allocated cell. Polymorphic functions can then indiscriminantly treat all inputs in the same way, regardless of type. Since this is not an option without a heap, we use a variant of the other predominant method: \emph{monomoprhisation} \cite{lutze2025simple}. This is realised through the \textit{\scriptsize mono} rule in the partial evaluator.
 
 \subsubsection{Recursive Functions}
 
@@ -456,7 +457,7 @@ nTimes n f = go n
     go m x = f (go (m - 1) x)
 \end{minted}
 
-Note how, even though the function \texttt{go} uses type variables, because it does not use universal quantification, it is still considered a first-order function (reliant on the fact that the type variable \texttt{a} has kind $\star_1$).
+Note how, even though the function \texttt{go} uses type variables, because it does not use universal quantification, it is still considered a first-order function (i.e. it has kind $\star_2$).
 
 \subsubsection{Kind System} \label{sec:kind-system}
 
@@ -473,11 +474,10 @@ choose = go
     go n x y = go (n - 1) y x
 \end{minted}
 
-Depending on whether the variable \texttt{a} is later instantiated with a basic type or function type, the type of the monomorphised function may be either first-order (modulo currying) or higher-order. Because of this, we cannot treat all type variables as being basic types: doing so would allow the programmer to circumvent the restrictions on higher-order functions by hiding functions types behind a type variable. By separating type variables based on whether they represent functions or not, we can reason about whether a polymorphic function definition is truly first-order for every possible type instantiation. 
+Depending on whether the variable \texttt{a} is later instantiated with a basic type or function type, the type of the monomorphised function may be either first-order (modulo currying) or higher-order. Because of this, we cannot treat all type variables as being basic types: doing so would allow the programmer to circumvent the restrictions on higher-order functions by hiding functions types behind a type variable. By separating type variables based on whether they represent functions or not, we can reason about whether a polymorphic function definition is truly first-order for every possible type instantiation. This idea of encoding information in kinds rather than types to handle polymorphism has been explored previously \cite{downen2020kinds}.
 
-\subsection{Semantics}
+\subsection{Semantic Preservation}
 
-% Later on mention the problem of termination - the partially evaluated version may terminate when the original does not.
 An obvious consequence of introducing general recursion is that input programs are no longer guaranteed to always terminate. Not only does this cause issues with the termination of the partial evaluator itself, but it can also pose problems related to the preservation of program semantics. In general, we would expect the program resulting from partial evaluation to have the same semantics as the input program. However, since general recursion introduces the implicit side effect of non-termination, this is not always the case. Consider the following program:
 
 \[
@@ -518,7 +518,7 @@ The most straightforward way to implement the partial evaluator is to continuous
 
 A modern approach to implementing normalizers is \emph{normalization by evaluation} (NbE), where expressions are first evaluated into semantic values and then later \emph{reified} back into syntactic terms \cite{abel2014normalization, berger1998normalization}. Expensive substitutions are avoided entirely, with environments and variable lookups being used instead. NbE has been widely employed in the implementation of type checkers for dependently typed languages such as Idris and Agda. Since normalizers and partial evaluators are fundamentally very similar, it is relatively straightforward to adapt NbE algorithms to implement our partial evaluator efficiently -- this is the approach we use in our sample implementation.  
 
-There are a few ways in which our implementation differs from a conventional NbE algorithm. First, the definition of our normal and neutral terms is more lenient than usual, as redexes like let-bindings should be permitted in the result (provided the let-binding does not bind a higher-order function of course). Second, because we are working in a language based off \fom{}, we must perform both term-level and type-level reductions. This requires two distinct evaluation environments. Third, core language terms must carry thorough typing annotations as we are compiling to a typed language backend -- the algorithm must be ensure that these typing annotations are preserved during evaluation. The complete algorithm is verbose and relatively uninteresting, and so we refer the reader to our sample implementation for the details.
+There are a few ways in which our implementation differs from a conventional NbE algorithm. First, the definition of our normal and neutral terms is more lenient than usual, as redexes like let-bindings should be permitted in the result (provided the let-binding does not bind a higher-order function of course). Second, because we are working in a language based off \fom{}, we must perform both term-level and type-level reductions. This requires two distinct evaluation environments. Third, core language terms must carry thorough typing annotations as we are compiling to a typed language backend -- the algorithm must ensure that these typing annotations are preserved during evaluation. The complete algorithm is verbose and relatively uninteresting, and so we refer the reader to our sample implementation for the details.
 
 
 \subsection{Uncurrying}
@@ -650,7 +650,7 @@ Partial evaluators and multi-stage languages have always been closely related. W
 
 \subsection{Higher-Order Removal}
 
-The removal of higher-order functions by translating to a first-order representation has been very well-studied. The usual motivation is to simplify the compilation process as first-order programs are much simpler to compile to machine-code. Unfortunately, existing methods for removing higher-order functions are not applicable to our use-case of heapless programming, as in the process of removing higher-order functions they introduce other language constructs which also require the heap at run-time.
+The removal of higher-order functions by translating to a first-order representation has been very well-studied \cite{minamide1996typed,brandon2023better,chin1996higher}. The usual motivation is to simplify the compilation process as first-order programs are much simpler to compile to machine-code. Unfortunately, existing methods for removing higher-order functions are not applicable to our use-case of heapless programming, as in the process of removing higher-order functions they introduce other language constructs which also require the heap at run-time.
 
 \subsubsection{Defunctionalization}
 
@@ -681,7 +681,7 @@ While heap-allocated closures are obviously not an option without a heap, some l
 
 \begin{itemize}
   \item When one closure captures another, the first closure is stored by reference in the second. This means that the second closure must not outlive the first, or we will access a dangling reference. Rust solves this with its signature ``lifetimes'', but we believe such an approach would be quite unwieldy given the ubiquity of closures in functional programming.
-  \item Since different closures of with same type may be different sizes, every closure is assumed to have a unique (mutually incompatible) type. For example, an if-expression which returns different closures in different branches will be rejected by the type checker, since the types of branches will be different too. The approach in this paper does not suffer from this problem due to distribution rules (Section \ref{sec:distribution}).
+  \item Since different closures of the same type may be different sizes, every closure is assumed to have a unique (mutually incompatible) type. For example, an if-expression which returns different closures in different branches will be rejected by the type checker, since the types of branches will be different too. The approach in this paper does not suffer from this problem due to distribution rules (Section \ref{sec:distribution}).
 \end{itemize}
 
 % \subsubsection{Restricting Existing Methods}

@@ -8,7 +8,9 @@ import Data.List
 import Surface.Alpha
 import Surface.Syntax
 
-data Scheme = Forall (S.HashSet Ident) Type
+newtype Kind = Star Int
+
+data Scheme = Forall (M.HashMap Ident Kind) Type
 
 data Ctxt = Ctxt
   { vars :: [(Ident, Scheme)],
@@ -50,7 +52,7 @@ checkTop (TLet r x a t) = do
   checkPolyLet r x a t
   mctxt <- lift get
   _ <- withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ solveConstraints (constraints mctxt)
-  lift $ put mctxt { constraints = [] }
+  lift $ put mctxt {constraints = []}
 
 checkExpr :: Expr -> Type -> TC ()
 checkExpr t a = do
@@ -101,15 +103,15 @@ inferExpr = \case
 
 checkIntCmp :: Expr -> Expr -> TC Type
 checkIntCmp x y = do
-    checkExpr x $ TCon "Int"
-    checkExpr y $ TCon "Int"
-    pure $ TCon "Bool"
+  checkExpr x $ TCon "Int"
+  checkExpr y $ TCon "Int"
+  pure $ TCon "Bool"
 
 checkArith :: Expr -> Expr -> TC Type
 checkArith x y = do
-    checkExpr x $ TCon "Int"
-    checkExpr y $ TCon "Int"
-    pure $ TCon "Int"
+  checkExpr x $ TCon "Int"
+  checkExpr y $ TCon "Int"
+  pure $ TCon "Int"
 
 checkPolyLet :: Rec -> Ident -> Type -> Expr -> TC ()
 checkPolyLet r x a t = do
@@ -175,8 +177,8 @@ setMeta x a
 s0 @@ s1 = M.map (substMeta s0) s1 `M.union` s0
 
 -- These should be in base now?
-tryError :: MonadError e m => m a -> m (Either e a)
+tryError :: (MonadError e m) => m a -> m (Either e a)
 tryError action = (Right <$> action) `catchError` (pure . Left)
 
-withError :: MonadError e m => (e -> e) -> m a -> m a
+withError :: (MonadError e m) => (e -> e) -> m a -> m a
 withError f action = tryError action >>= either (throwError . f) pure
