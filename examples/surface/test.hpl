@@ -1,6 +1,7 @@
-let id : a -> a =
+let id : [a :: *1]. a -> a =
     \x => let y = x; y;
 
+/*
 let const : a -> b -> a =
     (\x y => x);
 
@@ -8,3 +9,4 @@ let rec composeN : Int -> (a -> a) -> a -> a =
     \n f x => if n >= 0
         then f (composeN (n - 1) f x)
         else x;
+*/

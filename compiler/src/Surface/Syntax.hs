@@ -19,6 +19,12 @@ data Type
   | TMeta Ident -- Meta variable, only used during type checking (user cannot create this)
   deriving (Eq, Show)
 
+newtype Kind = Star Int
+  deriving (Show)
+
+data Scheme = Forall [(Ident, Kind)] Type
+  deriving (Show)
+
 data Rec = Rec | NoRec
   deriving (Eq, Show)
 
@@ -26,14 +32,14 @@ data Expr
   = EVar Ident
   | ELam [Ident] Expr
   | EApp Expr Expr
-  | ELet Rec Ident (Maybe Type) Expr Expr
+  | ELet Rec Ident (Maybe Scheme) Expr Expr
   | EInt Integer
   | EIf Expr Expr Expr
   | EBin BinOp Expr Expr
   deriving (Show)
 
 data Top
-  = TLet Rec Ident Type Expr
+  = TLet Rec Ident Scheme Expr
   deriving (Show)
 
 type Prog = [Top]

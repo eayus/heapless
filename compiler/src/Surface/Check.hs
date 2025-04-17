@@ -8,18 +8,14 @@ import Data.List
 import Surface.Alpha
 import Surface.Syntax
 
-newtype Kind = Star Int
-
-data Scheme = Forall (M.HashMap Ident Kind) Type
-
 data Ctxt = Ctxt
   { vars :: [(Ident, Scheme)],
-    typeVars :: S.HashSet Ident
+    typeVars :: [(Ident, Kind)]
   }
 
 data MCtxt = MCtxt
   { freshNames :: [Ident],
-    usedNames :: [Ident],
+    metaVars :: [Ident], -- Meta variables in scope.
     constraints :: [(Type, Type)] -- Type equalities
   }
 
@@ -37,7 +33,7 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [] S.empty
+initCtxt = Ctxt [] []
 
 initMCtxt :: MCtxt
 initMCtxt = MCtxt nameSupply [] []
@@ -65,11 +61,11 @@ inferExpr = \case
     ctxt <- get
     case lookup x $ vars ctxt of
       Just (Forall xs a) -> do
-        sub <- mapM (const meta) $ S.toMap xs
-        pure $ substVar sub a
+        sub <- mapM (traverse (const meta)) xs
+        pure $ substVar (M.fromList sub) a
       Nothing -> throwError $ "Undefined variable " ++ x
   ELam xs t -> locally $ do
-    as <- mapM (\x -> do a <- meta; extend x $ Forall S.empty a; pure a) xs
+    as <- mapM (\x -> do a <- meta; extend x $ Forall [] a; pure a) xs
     b <- inferExpr t
     pure $ foldr TArr b as
   EApp t u -> do
@@ -81,7 +77,7 @@ inferExpr = \case
   ELet NoRec x Nothing t u -> do
     a <- inferExpr t
     locally $ do
-      extend x (Forall S.empty a)
+      extend x (Forall [] a)
       inferExpr u
   ELet r x (Just a) t u -> locally $ do
     checkPolyLet r x a t
@@ -113,21 +109,41 @@ checkArith x y = do
   checkExpr y $ TCon "Int"
   pure $ TCon "Int"
 
-checkPolyLet :: Rec -> Ident -> Type -> Expr -> TC ()
-checkPolyLet r x a t = do
-  ctxt <- get
-  let quantifiedTypeVars = typeFrees a `S.difference` typeVars ctxt
+checkPolyLet :: Rec -> Ident -> Scheme -> Expr -> TC ()
+checkPolyLet r x sch@(Forall xs a) t = do
   locally $ do
-    mapM_ extendType quantifiedTypeVars
-    when (r == Rec) $ extend x (Forall quantifiedTypeVars a)
+    mapM_ (uncurry extendType) xs
+    Star o <- inferType a
+    when (r == Rec) $ do
+      when (o == 3) $ throwError "Higher-order functions are not allowed to be recursive"
+      extend x sch
     checkExpr t a
-  extend x $ Forall quantifiedTypeVars a
+  extend x sch
+
+inferType :: Type -> TC Kind
+inferType = \case
+  TVar x -> do
+    ctxt <- get
+    case lookup x (typeVars ctxt) of
+      Just k -> pure k
+      Nothing -> throwError $ "Undefined type variable " ++ x
+  TCon x -> do
+    unless (x `elem` ["Int", "Bool"]) (throwError $ "Undefined type constructor " ++ x)
+    pure $ Star 1
+  TArr a b -> do
+    Star i <- inferType a
+    Star j <- inferType b
+    pure $ Star $ max (suc i) j
+  TMeta {} -> undefined
+
+suc :: Int -> Int
+suc i = min (i + 1) 3
 
 extend :: Ident -> Scheme -> TC ()
 extend x a = modify $ \ctxt -> ctxt {vars = (x, a) : vars ctxt}
 
-extendType :: Ident -> TC ()
-extendType x = modify $ \ctxt -> ctxt {typeVars = S.insert x $ typeVars ctxt}
+extendType :: Ident -> Kind -> TC ()
+extendType x a = modify $ \ctxt -> ctxt {typeVars = (x, a) : typeVars ctxt}
 
 locally :: TC a -> TC a
 locally m = do
@@ -140,7 +156,7 @@ meta :: TC Type
 meta = do
   mctxt <- lift get
   let names = freshNames mctxt
-  lift $ put $ mctxt {freshNames = tail names, usedNames = head names : usedNames mctxt}
+  lift $ put $ mctxt {freshNames = tail names, metaVars = head names : metaVars mctxt}
   pure $ TMeta $ head names
 
 solveConstraints :: (MonadError String m) => [(Type, Type)] -> m Subst

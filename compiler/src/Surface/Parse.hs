@@ -2,6 +2,7 @@ module Surface.Parse where
 
 import Control.Monad.Combinators.Expr
 import Control.Monad.Except
+import Data.Maybe
 import Data.Void (Void)
 import Surface.Syntax
 import Text.Megaparsec
@@ -26,23 +27,23 @@ pTop = do
   r <- pRec
   x <- pIdent
   symbol ":"
-  a <- pType
+  a <- pScheme
   symbol "="
   t <- pExpr
   symbol ";"
   pure $ TLet r x a t
 
 pRec :: Parser Rec
-pRec = optional (symbol "rec") >>= \case
-  Nothing -> pure NoRec
-  Just () -> pure Rec
+pRec =
+  optional (symbol "rec") >>= \case
+    Nothing -> pure NoRec
+    Just () -> pure Rec
 
 pExpr :: Parser Expr
 pExpr = makeExprParser pApps ops
   where
     ops =
-      [ [
-          InfixL (EBin BLTE <$ symbol "<="),
+      [ [ InfixL (EBin BLTE <$ symbol "<="),
           InfixL (EBin BLT <$ symbol "<"),
           InfixL (EBin BGTE <$ symbol ">="),
           InfixL (EBin BGT <$ symbol ">")
@@ -96,6 +97,27 @@ pType = makeExprParser pTypeAtom ops
 
 pTypeAtom :: Parser Type
 pTypeAtom = choice [TVar <$> pLowerIdent, TCon <$> pUpperIdent, parens pType]
+
+pScheme :: Parser Scheme
+pScheme = do
+  tvars <- optional $ do
+    symbol "["
+    xs <-
+      sepEndBy1
+        ( do
+            a <- pLowerIdent
+            symbol "::"
+            k <- pKind
+            pure (a, k)
+        )
+        (symbol ",")
+    symbol "]"
+    symbol "."
+    pure xs
+  Forall (fromMaybe [] tvars) <$> pType
+
+pKind :: Parser Kind
+pKind = choice [Star 1 <$ symbol "*1", Star 2 <$ symbol "*2", Star 3 <$ symbol "*3"]
 
 pLowerIdent :: Parser Ident
 pLowerIdent = try $ lexeme $ do
