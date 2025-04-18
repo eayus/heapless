@@ -1,0 +1,16 @@
+When we call a polymorphic function, we generate meta variables for each type that is quantified.
+Because we have a kind system, we need to ensure that the solution to the meta variables has the correct kind.
+I can think of two solutions to this:
+
+a)
+Store a new set of constraints which map meta variables to expected kinds.
+Then, at the end of type checking, solve for type meta variables, apply the solution to this new set of constraints, and then check that the solved types have the correct kind.
+Because the type meta variable solution may contain type variables, we cannot know the kind without knowing the kind of type variables in scope. Therefore, alongside the constraint, we must cache the
+current context.
+
+b)
+In the meta-context, rather than store a list of meta variables, store a map from meta variable to kind. Unificaition should consider the kind of meta-variables to determine whether
+it is ok to unify.
+
+Becuase sometimes we want to generate a meta variable and we don't care about the kind, we would also need kind meta variables. I think this would get complicated, particularly in relation to the
+unification needing to check kinds as mentioned above.

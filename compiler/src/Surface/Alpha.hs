@@ -31,6 +31,9 @@ substMeta sub = \case
   TVar x -> TVar x
   TCon x -> TCon x
 
+substSchemeMeta :: Subst -> Scheme -> Scheme
+substSchemeMeta sub (Forall xs a) = Forall xs $ substMeta sub a
+
 metaFrees :: Type -> S.HashSet Ident
 metaFrees = \case
   TVar _ -> S.empty

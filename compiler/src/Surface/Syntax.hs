@@ -20,7 +20,7 @@ data Type
   deriving (Eq, Show)
 
 newtype Kind = Star Int
-  deriving (Show)
+  deriving (Eq, Show)
 
 data Scheme = Forall [(Ident, Kind)] Type
   deriving (Show)

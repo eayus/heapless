@@ -2,11 +2,13 @@ module Surface.Check where
 
 import Control.Monad.Except
 import Control.Monad.State
+import Data.Bifunctor
 import Data.HashMap.Strict qualified as M
 import Data.HashSet qualified as S
 import Data.List
 import Surface.Alpha
 import Surface.Syntax
+import Debug.Trace (traceShowM)
 
 data Ctxt = Ctxt
   { vars :: [(Ident, Scheme)],
@@ -16,7 +18,8 @@ data Ctxt = Ctxt
 data MCtxt = MCtxt
   { freshNames :: [Ident],
     metaVars :: [Ident], -- Meta variables in scope.
-    constraints :: [(Type, Type)] -- Type equalities
+    constraints :: [(Type, Type)], -- Type equalities
+    kindConstraints :: [(Ctxt, Type, Kind)]
   }
 
 type TC a = StateT Ctxt (StateT MCtxt (Except String)) a
@@ -28,17 +31,19 @@ runTC :: (MonadError String m) => TC () -> m ()
 runTC m0 = do
   let m1 = evalStateT m0 initCtxt
   let m2 = runStateT m1 initMCtxt
-  (_, mctxt) <- liftEither $ runExcept m2
-  _ <- solveConstraints $ constraints mctxt
+  (_, _) <- liftEither $ runExcept m2
   pure ()
 
 initCtxt :: Ctxt
 initCtxt = Ctxt [] []
 
 initMCtxt :: MCtxt
-initMCtxt = MCtxt nameSupply [] []
+initMCtxt = MCtxt nameSupply [] [] []
   where
     nameSupply = map singleton ['a' ..]
+
+substCtxtMeta :: Subst -> Ctxt -> Ctxt
+substCtxtMeta sub (Ctxt vars tvars) = Ctxt (map (second (substSchemeMeta sub)) vars) tvars
 
 checkProg :: Prog -> TC ()
 checkProg = mapM_ checkTop
@@ -47,7 +52,11 @@ checkTop :: Top -> TC ()
 checkTop (TLet r x a t) = do
   checkPolyLet r x a t
   mctxt <- lift get
-  _ <- withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ solveConstraints (constraints mctxt)
+  withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
+    -- TODO: Check for unsolved metas?
+    sub <- solveConstraints (constraints mctxt)
+    let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
+    forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
   lift $ put mctxt {constraints = []}
 
 checkExpr :: Expr -> Type -> TC ()
@@ -61,7 +70,14 @@ inferExpr = \case
     ctxt <- get
     case lookup x $ vars ctxt of
       Just (Forall xs a) -> do
-        sub <- mapM (traverse (const meta)) xs
+        sub <-
+          mapM
+            ( \(y, k) -> do
+                m <- meta
+                hasKind m k
+                pure (y, m)
+            )
+            xs
         pure $ substVar (M.fromList sub) a
       Nothing -> throwError $ "Undefined variable " ++ x
   ELam xs t -> locally $ do
@@ -120,6 +136,12 @@ checkPolyLet r x sch@(Forall xs a) t = do
     checkExpr t a
   extend x sch
 
+-- Only to be used once meta variables have been solved.
+checkType :: Type -> Kind -> TC ()
+checkType a k0 = do
+  k1 <- inferType a
+  unless (k0 == k1) $ throwError $ "Expected type " ++ show a ++ "to have kind " ++ show k0 ++ " but it has kind " ++ show k1
+
 inferType :: Type -> TC Kind
 inferType = \case
   TVar x -> do
@@ -144,6 +166,12 @@ extend x a = modify $ \ctxt -> ctxt {vars = (x, a) : vars ctxt}
 
 extendType :: Ident -> Kind -> TC ()
 extendType x a = modify $ \ctxt -> ctxt {typeVars = (x, a) : typeVars ctxt}
+
+hasKind :: Type -> Kind -> TC ()
+hasKind a k = do
+  ctxt <- get
+  mctxt <- lift get
+  lift $ put $ mctxt {kindConstraints = (ctxt, a, k) : kindConstraints mctxt}
 
 locally :: TC a -> TC a
 locally m = do

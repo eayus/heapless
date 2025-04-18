@@ -1,5 +1,7 @@
-let id : [a :: *1]. a -> a =
-    \x => let y = x; y;
+let id : [a :: *2]. a -> a =
+    \x => x;
+
+let n : Int -> Int = id (\x => x);
 
 /*
 let const : a -> b -> a =
