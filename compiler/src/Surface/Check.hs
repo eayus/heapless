@@ -6,13 +6,14 @@ import Data.Bifunctor
 import Data.HashMap.Strict qualified as M
 import Data.HashSet qualified as S
 import Data.List
-import Debug.Trace
 import Surface.Alpha
 import Surface.Syntax
 
 data Ctxt = Ctxt
   { vars :: [(Ident, Scheme)],
-    typeVars :: [(Ident, Kind)]
+    typeVars :: [(Ident, Kind)],
+    typeCons :: [(Ident, Kind)],
+    dataCons :: [(Ident, Type)]
   }
   deriving (Show)
 
@@ -22,6 +23,9 @@ data MCtxt = MCtxt
     constraints :: [(Type, Type)], -- Type equalities
     kindConstraints :: [(Ctxt, Type, Kind)]
   }
+
+-- TODO: Rather than running all definitions in TC, be more fine grained and make it clear the meta context does not
+-- persist between top-level definitions. (This has already lead to a bug once).
 
 type TC a = StateT Ctxt (StateT MCtxt (Except String)) a
 
@@ -36,7 +40,7 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [] []
+initCtxt = Ctxt [] [] [("Int", Star 1)] [("True", TCon "Bool"), ("False", TCon "Bool")]
 
 initMCtxt :: MCtxt
 initMCtxt = MCtxt nameSupply [] [] []
@@ -44,23 +48,39 @@ initMCtxt = MCtxt nameSupply [] [] []
     nameSupply = map singleton ['a' ..]
 
 substCtxtMeta :: Subst -> Ctxt -> Ctxt
-substCtxtMeta sub (Ctxt vars tvars) = Ctxt (map (second (substSchemeMeta sub)) vars) tvars
+substCtxtMeta sub (Ctxt vars tvars tcons dcons) = Ctxt (map (second (substSchemeMeta sub)) vars) tvars tcons dcons
 
 checkProg :: Prog -> TC ()
 checkProg = mapM_ checkTop
 
 checkTop :: Top -> TC ()
-checkTop (TLet r x a t) = do
+checkTop (TLet r x a t) = withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
   checkPolyLet r x a t
   mctxt <- lift get
-  withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
-    sub <- solveConstraints (constraints mctxt)
-    let mvars = metaVars mctxt
-    let unsolved = S.fromList mvars `S.difference` M.keysSet sub
-    unless (null unsolved) $ throwError $ "Unsolved meta variables: " ++ show unsolved
-    let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
-    forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
-  lift $ put mctxt {metaVars = [], constraints = [], kindConstraints = []}
+  sub <- solveConstraints (constraints mctxt)
+  let mvars = metaVars mctxt
+  let unsolved = S.fromList mvars `S.difference` M.keysSet sub
+  unless (null unsolved) $ throwError $ "Unsolved meta variables: " ++ show unsolved
+  let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
+  forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
+  lift $ put initMCtxt
+checkTop (TData x cs) = do
+  ctxt <- get
+  lift $ put initMCtxt
+  when (x `elem` map fst (typeCons ctxt)) $ throwError $ "Data type " ++ x ++ " is already defined"
+  is <- mapM (checkConstr x) cs
+  extendTypeCon x $ Star $ maximum is
+
+checkConstr :: Ident -> Constr -> TC Int
+checkConstr dataName (Constr x as) = do
+  ctxt <- get
+  when (x `elem` map fst (dataCons ctxt)) $ throwError $ "Data constructor " ++ x ++ " is already defined"
+  is <- forM as $ \a -> do
+    Star i <- inferType a
+    pure i
+  let a = foldr TArr (TCon dataName) as
+  extendDataCon x a
+  pure $ maximum is
 
 checkExpr :: Expr -> Type -> TC ()
 checkExpr t a = do
@@ -83,6 +103,11 @@ inferExpr = \case
             xs
         pure $ substVar (M.fromList sub) a
       Nothing -> throwError $ "Undefined variable " ++ x
+  ECon x -> do
+    ctxt <- get
+    case lookup x $ dataCons ctxt of
+      Just a -> pure a
+      Nothing -> throwError $ "Undefined data constructor " ++ x
   ELam xs t -> locally $ do
     as <- mapM (\x -> do a <- meta; extend x $ Forall [] a; pure a) xs
     b <- inferExpr t
@@ -153,7 +178,10 @@ inferType = \case
       Just k -> pure k
       Nothing -> throwError $ "Undefined type variable " ++ x
   TCon x -> do
-    unless (x `elem` ["Int", "Bool"]) (throwError $ "Undefined type constructor " ++ x)
+    ctxt <- get
+    case lookup x $ typeCons ctxt of
+      Just k -> pure k
+      Nothing -> throwError $ "Undefined type constructor " ++ x
     pure $ Star 1
   TArr a b -> do
     Star i <- inferType a
@@ -169,6 +197,12 @@ extend x a = modify $ \ctxt -> ctxt {vars = (x, a) : vars ctxt}
 
 extendType :: Ident -> Kind -> TC ()
 extendType x a = modify $ \ctxt -> ctxt {typeVars = (x, a) : typeVars ctxt}
+
+extendDataCon :: Ident -> Type -> TC ()
+extendDataCon x a = modify $ \ctxt -> ctxt {dataCons = (x, a) : dataCons ctxt}
+
+extendTypeCon :: Ident -> Kind -> TC ()
+extendTypeCon x a = modify $ \ctxt -> ctxt {typeCons = (x, a) : typeCons ctxt}
 
 hasKind :: Type -> Kind -> TC ()
 hasKind a k = do

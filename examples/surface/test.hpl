@@ -14,3 +14,11 @@ let composeN : [a :: *1]. Int -> (a -> a) -> a -> a =
                 else x;
         go m
     ;
+
+let m : Int = if False then 3 else 4;
+
+data Maybe
+    = Just Int
+    | Nothing
+
+let rec foo : Maybe = Nothing;

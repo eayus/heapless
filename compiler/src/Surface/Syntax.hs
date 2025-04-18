@@ -34,12 +34,17 @@ data Expr
   | EApp Expr Expr
   | ELet Rec Ident (Maybe Scheme) Expr Expr
   | EInt Integer
+  | ECon Ident
   | EIf Expr Expr Expr
   | EBin BinOp Expr Expr
   deriving (Show)
 
+data Constr = Constr Ident [Type]
+  deriving (Show)
+
 data Top
   = TLet Rec Ident Scheme Expr
+  | TData Ident [Constr]
   deriving (Show)
 
 type Prog = [Top]

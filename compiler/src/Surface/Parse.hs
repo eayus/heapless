@@ -22,7 +22,18 @@ pProg :: Parser Prog
 pProg = many pTop
 
 pTop :: Parser Top
-pTop = do
+pTop = pTLet <|> pTData
+
+pTData :: Parser Top
+pTData = do
+  symbol "data"
+  x <- pUpperIdent
+  symbol "="
+  cs <- sepBy1 pConstr $ symbol "|"
+  pure $ TData x cs
+
+pTLet :: Parser Top
+pTLet = do
   symbol "let"
   r <- pRec
   x <- pIdent
@@ -61,7 +72,7 @@ pApps = do
   pure $ foldl1 EApp xs
 
 pExprAtom :: Parser Expr
-pExprAtom = choice [pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
+pExprAtom = choice [pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
   where
     pELam = do
       symbol "\\"
@@ -84,6 +95,8 @@ pExprAtom = choice [pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
     pEVar = EVar <$> pLowerIdent
 
     pEInt = lexeme $ EInt <$> L.decimal
+
+    pECon = ECon <$> pUpperIdent
 
     pEIf = do
       symbol "if"
@@ -118,6 +131,12 @@ pScheme = do
     symbol "."
     pure xs
   Forall (fromMaybe [] tvars) <$> pType
+
+pConstr :: Parser Constr
+pConstr = do
+  x <- pUpperIdent
+  as <- many pTypeAtom
+  pure $ Constr x as
 
 pKind :: Parser Kind
 pKind = choice [Star 1 <$ symbol "*1", Star 2 <$ symbol "*2", Star 3 <$ symbol "*3"]
