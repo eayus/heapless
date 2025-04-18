@@ -1,14 +1,16 @@
-let id : [a :: *2]. a -> a =
+let id : [a :: *3]. a -> a =
     \x => x;
 
 let n : Int -> Int = id (\x => x);
 
-/*
-let const : a -> b -> a =
+let const : [a :: *3, b :: *3]. a -> b -> a =
     (\x y => x);
 
-let rec composeN : Int -> (a -> a) -> a -> a =
-    \n f x => if n >= 0
-        then f (composeN (n - 1) f x)
-        else x;
-*/
+let composeN : [a :: *1]. Int -> (a -> a) -> a -> a =
+    \m f =>
+        let rec go : Int -> a -> a =
+            \n x => if n >= 0
+                then go (n - 1) (f x)
+                else x;
+        go m
+    ;

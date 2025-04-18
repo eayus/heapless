@@ -73,10 +73,13 @@ pExprAtom = choice [pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
       symbol "let"
       r <- pRec
       x <- pIdent
+      a <- optional $ do
+        symbol ":"
+        pScheme
       symbol "="
       t <- pExpr
       symbol ";"
-      ELet r x Nothing t <$> pExpr
+      ELet r x a t <$> pExpr
 
     pEVar = EVar <$> pLowerIdent
 

@@ -6,14 +6,15 @@ import Data.Bifunctor
 import Data.HashMap.Strict qualified as M
 import Data.HashSet qualified as S
 import Data.List
+import Debug.Trace
 import Surface.Alpha
 import Surface.Syntax
-import Debug.Trace (traceShowM)
 
 data Ctxt = Ctxt
   { vars :: [(Ident, Scheme)],
     typeVars :: [(Ident, Kind)]
   }
+  deriving (Show)
 
 data MCtxt = MCtxt
   { freshNames :: [Ident],
@@ -53,11 +54,13 @@ checkTop (TLet r x a t) = do
   checkPolyLet r x a t
   mctxt <- lift get
   withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
-    -- TODO: Check for unsolved metas?
     sub <- solveConstraints (constraints mctxt)
+    let mvars = metaVars mctxt
+    let unsolved = S.fromList mvars `S.difference` M.keysSet sub
+    unless (null unsolved) $ throwError $ "Unsolved meta variables: " ++ show unsolved
     let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
     forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
-  lift $ put mctxt {constraints = []}
+  lift $ put mctxt {metaVars = [], constraints = [], kindConstraints = []}
 
 checkExpr :: Expr -> Type -> TC ()
 checkExpr t a = do
@@ -129,18 +132,18 @@ checkPolyLet :: Rec -> Ident -> Scheme -> Expr -> TC ()
 checkPolyLet r x sch@(Forall xs a) t = do
   locally $ do
     mapM_ (uncurry extendType) xs
-    Star o <- inferType a
+    Star i <- inferType a
     when (r == Rec) $ do
-      when (o == 3) $ throwError "Higher-order functions are not allowed to be recursive"
+      when (i == 3) $ throwError "Higher-order functions are not allowed to be recursive"
       extend x sch
     checkExpr t a
   extend x sch
 
 -- Only to be used once meta variables have been solved.
 checkType :: Type -> Kind -> TC ()
-checkType a k0 = do
-  k1 <- inferType a
-  unless (k0 == k1) $ throwError $ "Expected type " ++ show a ++ "to have kind " ++ show k0 ++ " but it has kind " ++ show k1
+checkType a k0@(Star i) = do
+  k1@(Star j) <- inferType a
+  unless (j <= i) $ throwError $ "Expected type " ++ show a ++ "to have kind " ++ show k0 ++ " but it has kind " ++ show k1
 
 inferType :: Type -> TC Kind
 inferType = \case
@@ -156,7 +159,7 @@ inferType = \case
     Star i <- inferType a
     Star j <- inferType b
     pure $ Star $ max (suc i) j
-  TMeta {} -> undefined
+  TMeta {} -> error "Meta variable encountered when trying to infer the kind for a type!"
 
 suc :: Int -> Int
 suc i = min (i + 1) 3
