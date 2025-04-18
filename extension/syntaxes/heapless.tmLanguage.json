@@ -1,0 +1,49 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Heapless",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#block_comments"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control.heapless",
+				"match": "\\b(if|then|else|let|rec|data|class|inst)\\b"
+			},{
+				"name": "variable.heapless",
+				"match": "\\b[A-Z][a-zA-Z]*\\b"
+			},{
+				"name": "comment.heapless",
+				"match": "//.*$"
+			},{
+				"name": "constant.numeric.heapless",
+				"match": "\\b(?<!\\*)[0-9]+\\b"
+			}]
+		},
+		"block_comments": {
+			"begin": "\\/\\*",
+			"end": "\\*\\/",
+			"name": "comment.heapless"
+		},
+		"strings": {
+			"name": "string.quoted.double.heapless",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.heapless",
+					"match": "\\\\."
+				}
+			]
+		}
+	},
+	"scopeName": "source.heapless"
+}

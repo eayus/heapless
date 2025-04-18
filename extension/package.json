@@ -1,0 +1,25 @@
+{
+  "name": "heapless",
+  "displayName": "heapless",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "heapless",
+      "aliases": ["Heapless", "heapless"],
+      "extensions": [".hpl"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "heapless",
+      "scopeName": "source.heapless",
+      "path": "./syntaxes/heapless.tmLanguage.json"
+    }]
+  }
+}

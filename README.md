@@ -4,4 +4,5 @@ This is a research project aiming to explore functional programming languages wh
 Project structure:
 - `compiler` - The prototype implementation written in Haskell.
 - `examples` - Examples of the language in action, doubling as a test suite for the compiler.
+- `extension` - A VSCode language extension (basic syntax highlighting only).
 - `paper` - Research whitepaper describing the approach.
