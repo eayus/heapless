@@ -172,7 +172,20 @@ pScheme = do
     symbol "]"
     symbol "."
     pure xs
-  Forall (fromMaybe [] tvars) <$> pType
+  clCons <- optional $ do
+    symbol "{"
+    xs <-
+      sepEndBy1
+        ( do
+            c <- pUpperIdent
+            x <- pTypeAtom
+            pure (c, x)
+        )
+        (symbol ",")
+    symbol "}"
+    symbol "=>"
+    pure xs
+  Forall (fromMaybe [] tvars) (fromMaybe [] clCons) <$> pType
 
 pConstr :: Parser Constr
 pConstr = do

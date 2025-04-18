@@ -15,7 +15,8 @@ data Ctxt = Ctxt
     typeVars :: [(Ident, Kind)],
     typeCons :: [(Ident, Kind)],
     dataCons :: [(Ident, Type)],
-    classDefs :: [(Ident, Class)]
+    classDefs :: [(Ident, Class)],
+    instances :: [(Ident, Type)]
   }
   deriving (Show)
 
@@ -23,7 +24,8 @@ data MCtxt = MCtxt
   { freshNames :: [Ident],
     metaVars :: [Ident], -- Meta variables in scope.
     constraints :: [(Type, Type)], -- Type equalities
-    kindConstraints :: [(Ctxt, Type, Kind)]
+    kindConstraints :: [(Ctxt, Type, Kind)], -- A type has some kind.
+    mClassConstraints :: [(Ctxt, Ident, Type)] -- A class must be implemented for the type.
   }
 
 -- TODO: Rather than running all definitions in TC, be more fine grained and make it clear the meta context does not
@@ -42,15 +44,15 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [] [] [("Int", Star 1)] [("True", TCon "Bool"), ("False", TCon "Bool")] []
+initCtxt = Ctxt [] [] [("Int", Star 1)] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
 
 initMCtxt :: MCtxt
-initMCtxt = MCtxt nameSupply [] [] []
+initMCtxt = MCtxt nameSupply [] [] [] []
   where
     nameSupply = map singleton ['a' ..]
 
 substCtxtMeta :: Subst -> Ctxt -> Ctxt
-substCtxtMeta sub (Ctxt vars tvars tcons dcons cdefs) = Ctxt (map (second (substSchemeMeta sub)) vars) tvars tcons dcons cdefs
+substCtxtMeta sub (Ctxt vars tvars tcons dcons cdefs ccs) = Ctxt (map (second (substSchemeMeta sub)) vars) tvars tcons dcons cdefs ccs
 
 checkProg :: Prog -> TC ()
 checkProg = mapM_ checkTop
@@ -77,6 +79,7 @@ checkTop (TClass x c@(Class v k xs)) = do
     extendType v k
     forM_ xs $ \(_, a) -> checkScheme a
   extendClassDef x c
+  forM_ xs $ \(y, Forall xs cs a) -> extend y $ Forall ((v, k) : xs) ((x, TVar v) : cs) a
 checkTop (TInst className a defs) = do
   ctxt <- get
   Class v k sigs <- case lookup className $ classDefs ctxt of
@@ -85,15 +88,19 @@ checkTop (TInst className a defs) = do
   checkType a k
   let sigs' = map (substSigTVar $ M.singleton v a) sigs
   unless (sort (map fst defs) == sort (map fst sigs)) $ throwError "Instance does not have same methods as class"
-  forM_ sigs' $ \(x, Forall xs b) -> locally $ do
-    let rhs = fromJust $ lookup x defs
-    mapM_ (uncurry extendType) xs
-    checkExpr rhs b
+  locally $ do
+    extendInstance className a
+    forM_ sigs' $ \(x, Forall xs cs b) -> locally $ do
+      let rhs = fromJust $ lookup x defs
+      mapM_ (uncurry extendType) xs
+      mapM_ (uncurry extendInstance) cs
+      checkExpr rhs b
+  extendInstance className a
   solveAllConstraints
 
 -- Relies on the fact that the scheme does not capture variables in the substitution.
 substSigTVar :: Subst -> (Ident, Scheme) -> (Ident, Scheme)
-substSigTVar s (x, Forall xs a) = (x, Forall xs $ substVar s a)
+substSigTVar s (x, Forall xs cs a) = (x, Forall xs cs $ substVar s a)
 
 solveAllConstraints :: TC ()
 solveAllConstraints = do
@@ -104,6 +111,8 @@ solveAllConstraints = do
   unless (null unsolved) $ throwError $ "Unsolved meta variables: " ++ show unsolved
   let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
   forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
+  let classCons = map (\(ctxt, x, a) -> (substCtxtMeta sub ctxt, x, substMeta sub a)) $ mClassConstraints mctxt
+  forM_ classCons $ \(ctxt, x, a) -> unless ((x, a) `elem` instances ctxt) $ throwError $ "Required instance for " ++ x ++ " " ++ show a ++ "\nContext:\n" ++ show (instances ctxt)
   lift $ put initMCtxt
 
 checkConstr :: Ident -> Int -> Constr -> TC ()
@@ -124,16 +133,19 @@ inferExpr = \case
   EVar x -> do
     ctxt <- get
     case lookup x $ vars ctxt of
-      Just (Forall xs a) -> do
+      Just (Forall xs cs a) -> do
         sub <-
-          mapM
-            ( \(y, k) -> do
-                m <- meta
-                hasKind m k
-                pure (y, m)
-            )
-            xs
-        pure $ substVar (M.fromList sub) a
+          M.fromList
+            <$> mapM
+              ( \(y, k) -> do
+                  m <- meta
+                  hasKind m k
+                  pure (y, m)
+              )
+              xs
+        let cs' = map (second (substVar sub)) cs
+        mapM_ (uncurry hasClass) cs'
+        pure $ substVar sub a
       Nothing -> throwError $ "Undefined variable " ++ x
   ECon x -> do
     ctxt <- get
@@ -141,7 +153,7 @@ inferExpr = \case
       Just a -> pure a
       Nothing -> throwError $ "Undefined data constructor " ++ x
   ELam xs t -> locally $ do
-    as <- mapM (\x -> do a <- meta; extend x $ Forall [] a; pure a) xs
+    as <- mapM (\x -> do a <- meta; extend x $ Forall [] [] a; pure a) xs
     b <- inferExpr t
     pure $ foldr TArr b as
   EApp t u -> do
@@ -153,7 +165,7 @@ inferExpr = \case
   ELet NoRec x Nothing t u -> do
     a <- inferExpr t
     locally $ do
-      extend x (Forall [] a)
+      extend x (Forall [] [] a)
       inferExpr u
   ELet r x (Just a) t u -> locally $ do
     checkPolyLet r x a t
@@ -186,9 +198,10 @@ checkArith x y = do
   pure $ TCon "Int"
 
 checkPolyLet :: Rec -> Ident -> Scheme -> Expr -> TC ()
-checkPolyLet r x sch@(Forall xs a) t = do
+checkPolyLet r x sch@(Forall xs cs a) t = do
   locally $ do
     mapM_ (uncurry extendType) xs
+    mapM_ checkClassConstraint cs
     Star i <- inferType a
     when (r == Rec) $ do
       when (i == 3) $ throwError "Higher-order functions are not allowed to be recursive"
@@ -196,9 +209,19 @@ checkPolyLet r x sch@(Forall xs a) t = do
     checkExpr t a
   extend x sch
 
+checkClassConstraint :: (Ident, Type) -> TC ()
+checkClassConstraint (x, a) = do
+  ctxt <- get
+  Class _ k _ <- case lookup x $ classDefs ctxt of
+    Nothing -> throwError $ "Undefined type class " ++ x
+    Just c -> pure c
+  checkType a k
+  extendInstance x a
+
 checkScheme :: Scheme -> TC ()
-checkScheme (Forall xs a) = locally $ do
+checkScheme (Forall xs cs a) = locally $ do
   mapM_ (uncurry extendType) xs
+  mapM_ checkClassConstraint cs
   Star _ <- inferType a
   pure ()
 
@@ -248,11 +271,20 @@ extendTypeCon x a = modify $ \ctxt -> ctxt {typeCons = (x, a) : typeCons ctxt}
 extendClassDef :: Ident -> Class -> TC ()
 extendClassDef x c = modify $ \ctxt -> ctxt {classDefs = (x, c) : classDefs ctxt}
 
+extendInstance :: Ident -> Type -> TC ()
+extendInstance x c = modify $ \ctxt -> ctxt {instances = (x, c) : instances ctxt}
+
 hasKind :: Type -> Kind -> TC ()
 hasKind a k = do
   ctxt <- get
   mctxt <- lift get
   lift $ put $ mctxt {kindConstraints = (ctxt, a, k) : kindConstraints mctxt}
+
+hasClass :: Ident -> Type -> TC ()
+hasClass x a = do
+  ctxt <- get
+  mctxt <- lift get
+  lift $ put $ mctxt {mClassConstraints = (ctxt, x, a) : mClassConstraints mctxt}
 
 locally :: TC a -> TC a
 locally m = do

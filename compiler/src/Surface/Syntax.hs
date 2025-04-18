@@ -22,7 +22,11 @@ data Type
 newtype Kind = Star Int
   deriving (Eq, Show)
 
-data Scheme = Forall [(Ident, Kind)] Type
+data Scheme = Forall
+  { schTypeVars :: [(Ident, Kind)],
+    schClassConstraints :: [(Ident, Type)], -- Class name, type var
+    schBody :: Type
+  }
   deriving (Show)
 
 data Rec = Rec | NoRec

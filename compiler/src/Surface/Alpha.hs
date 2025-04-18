@@ -32,7 +32,7 @@ substMeta sub = \case
   TCon x -> TCon x
 
 substSchemeMeta :: Subst -> Scheme -> Scheme
-substSchemeMeta sub (Forall xs a) = Forall xs $ substMeta sub a
+substSchemeMeta sub (Forall xs cs a) = Forall xs cs $ substMeta sub a
 
 metaFrees :: Type -> S.HashSet Ident
 metaFrees = \case

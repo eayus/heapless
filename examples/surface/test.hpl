@@ -36,6 +36,8 @@ inst Num Int {
 let double : [a :: *1]. {Num a} => a -> a =
     \x => add x x;
 
+let foo : Int = add 3 4;
+
 /*
 let main : IO () = do {
     n : Int <- read
