@@ -64,23 +64,25 @@ checkTop (TLet r x a t) = withError (("When checking the top level definiton " +
   let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
   forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
   lift $ put initMCtxt
-checkTop (TData x cs) = do
+checkTop (TData x s cs) = do
   ctxt <- get
   lift $ put initMCtxt
   when (x `elem` map fst (typeCons ctxt)) $ throwError $ "Data type " ++ x ++ " is already defined"
-  is <- mapM (checkConstr x) cs
-  extendTypeCon x $ Star $ maximum is
+  case s of
+    RT -> do
+      mapM_ (checkConstr x 1) cs
+      extendTypeCon x $ Star 1
+    CT -> do
+      mapM_ (checkConstr x 3) cs
+      extendTypeCon x $ Star 3
 
-checkConstr :: Ident -> Constr -> TC Int
-checkConstr dataName (Constr x as) = do
+checkConstr :: Ident -> Int -> Constr -> TC ()
+checkConstr dataName i (Constr x as) = do
   ctxt <- get
   when (x `elem` map fst (dataCons ctxt)) $ throwError $ "Data constructor " ++ x ++ " is already defined"
-  is <- forM as $ \a -> do
-    Star i <- inferType a
-    pure i
+  forM_ as $ \a -> checkType a (Star i)
   let a = foldr TArr (TCon dataName) as
   extendDataCon x a
-  pure $ maximum is
 
 checkExpr :: Expr -> Type -> TC ()
 checkExpr t a = do
@@ -168,7 +170,7 @@ checkPolyLet r x sch@(Forall xs a) t = do
 checkType :: Type -> Kind -> TC ()
 checkType a k0@(Star i) = do
   k1@(Star j) <- inferType a
-  unless (j <= i) $ throwError $ "Expected type " ++ show a ++ "to have kind " ++ show k0 ++ " but it has kind " ++ show k1
+  unless (j <= i) $ throwError $ "Expected type " ++ show a ++ " to have kind " ++ show k0 ++ " but it has kind " ++ show k1
 
 inferType :: Type -> TC Kind
 inferType = \case

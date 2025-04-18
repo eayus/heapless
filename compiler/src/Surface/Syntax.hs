@@ -42,9 +42,12 @@ data Expr
 data Constr = Constr Ident [Type]
   deriving (Show)
 
+data Stage = RT | CT
+  deriving (Show)
+
 data Top
   = TLet Rec Ident Scheme Expr
-  | TData Ident [Constr]
+  | TData Ident Stage [Constr]
   deriving (Show)
 
 type Prog = [Top]

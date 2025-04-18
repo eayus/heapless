@@ -28,9 +28,10 @@ pTData :: Parser Top
 pTData = do
   symbol "data"
   x <- pUpperIdent
-  symbol "="
-  cs <- sepBy1 pConstr $ symbol "|"
-  pure $ TData x cs
+  s <- pStage
+  cs <- many pConstr
+  symbol ";"
+  pure $ TData x s cs
 
 pTLet :: Parser Top
 pTLet = do
@@ -49,6 +50,9 @@ pRec =
   optional (symbol "rec") >>= \case
     Nothing -> pure NoRec
     Just () -> pure Rec
+
+pStage :: Parser Stage
+pStage = choice [CT <$ symbol ":=", RT <$ symbol "="]
 
 pExpr :: Parser Expr
 pExpr = makeExprParser pApps ops
@@ -134,6 +138,7 @@ pScheme = do
 
 pConstr :: Parser Constr
 pConstr = do
+  symbol "|"
   x <- pUpperIdent
   as <- many pTypeAtom
   pure $ Constr x as

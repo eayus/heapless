@@ -17,8 +17,8 @@ let composeN : [a :: *1]. Int -> (a -> a) -> a -> a =
 
 let m : Int = if False then 3 else 4;
 
-data Maybe
-    = Just Int
-    | Nothing
+data Maybe :=
+  | Just (Int -> Int)
+  | Nothing;
 
 let rec foo : Maybe = Nothing;
