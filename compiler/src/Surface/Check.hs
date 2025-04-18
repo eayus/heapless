@@ -44,7 +44,7 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [] [] [("Int", Star 1)] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
+initCtxt = Ctxt [] [] [("Int", Star 1),("String", Star 1)] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
 
 initMCtxt :: MCtxt
 initMCtxt = MCtxt nameSupply [] [] [] []
@@ -171,6 +171,7 @@ inferExpr = \case
     checkPolyLet r x a t
     inferExpr u
   EInt _ -> pure $ TCon "Int"
+  EStr _ -> pure $ TCon "String"
   EIf x y z -> do
     checkExpr x $ TCon "Bool"
     a <- meta

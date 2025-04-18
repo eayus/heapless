@@ -38,6 +38,7 @@ data Expr
   | EApp Expr Expr
   | ELet Rec Ident (Maybe Scheme) Expr Expr
   | EInt Integer
+  | EStr String
   | ECon Ident
   | EIf Expr Expr Expr
   | EBin BinOp Expr Expr

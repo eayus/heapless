@@ -38,6 +38,8 @@ let double : [a :: *1]. {Num a} => a -> a =
 
 let foo : Int = add 3 4;
 
+let name : String = "Ellis";
+
 /*
 let main : IO () = do {
     n : Int <- read

@@ -1,3 +1,8 @@
+TODOS:
+- Higher kinded types
+- IO monad
+
+---------------------------
 When we call a polymorphic function, we generate meta variables for each type that is quantified.
 Because we have a kind system, we need to ensure that the solution to the meta variables has the correct kind.
 I can think of two solutions to this:

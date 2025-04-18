@@ -114,7 +114,7 @@ pApps = do
   pure $ foldl1 EApp xs
 
 pExprAtom :: Parser Expr
-pExprAtom = choice [pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
+pExprAtom = choice [pEStr, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
   where
     pELam = do
       symbol "\\"
@@ -137,6 +137,8 @@ pExprAtom = choice [pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
     pEVar = EVar <$> pLowerIdent
 
     pEInt = lexeme $ EInt <$> L.decimal
+
+    pEStr = lexeme $ EStr <$> stringLiteral
 
     pECon = ECon <$> pUpperIdent
 
@@ -225,8 +227,11 @@ parens = between (symbol "(") (symbol ")")
 
 -- Utilities for lexing.
 
+stringLiteral :: Parser String
+stringLiteral = char '\"' *> manyTill L.charLiteral (char '\"')
+
 reserved :: [String]
-reserved = ["let", "rec", "\\", "Λ", "if", "then", "else", "type"]
+reserved = ["let", "rec", "data", "\\", "Λ", "if", "then", "else", "type"]
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
