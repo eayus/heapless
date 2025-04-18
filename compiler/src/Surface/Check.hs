@@ -6,6 +6,7 @@ import Data.Bifunctor
 import Data.HashMap.Strict qualified as M
 import Data.HashSet qualified as S
 import Data.List
+import Data.Maybe
 import Surface.Alpha
 import Surface.Syntax
 
@@ -13,7 +14,8 @@ data Ctxt = Ctxt
   { vars :: [(Ident, Scheme)],
     typeVars :: [(Ident, Kind)],
     typeCons :: [(Ident, Kind)],
-    dataCons :: [(Ident, Type)]
+    dataCons :: [(Ident, Type)],
+    classDefs :: [(Ident, Class)]
   }
   deriving (Show)
 
@@ -40,7 +42,7 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [] [] [("Int", Star 1)] [("True", TCon "Bool"), ("False", TCon "Bool")]
+initCtxt = Ctxt [] [] [("Int", Star 1)] [("True", TCon "Bool"), ("False", TCon "Bool")] []
 
 initMCtxt :: MCtxt
 initMCtxt = MCtxt nameSupply [] [] []
@@ -48,7 +50,7 @@ initMCtxt = MCtxt nameSupply [] [] []
     nameSupply = map singleton ['a' ..]
 
 substCtxtMeta :: Subst -> Ctxt -> Ctxt
-substCtxtMeta sub (Ctxt vars tvars tcons dcons) = Ctxt (map (second (substSchemeMeta sub)) vars) tvars tcons dcons
+substCtxtMeta sub (Ctxt vars tvars tcons dcons cdefs) = Ctxt (map (second (substSchemeMeta sub)) vars) tvars tcons dcons cdefs
 
 checkProg :: Prog -> TC ()
 checkProg = mapM_ checkTop
@@ -56,14 +58,7 @@ checkProg = mapM_ checkTop
 checkTop :: Top -> TC ()
 checkTop (TLet r x a t) = withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
   checkPolyLet r x a t
-  mctxt <- lift get
-  sub <- solveConstraints (constraints mctxt)
-  let mvars = metaVars mctxt
-  let unsolved = S.fromList mvars `S.difference` M.keysSet sub
-  unless (null unsolved) $ throwError $ "Unsolved meta variables: " ++ show unsolved
-  let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
-  forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
-  lift $ put initMCtxt
+  solveAllConstraints
 checkTop (TData x s cs) = do
   ctxt <- get
   lift $ put initMCtxt
@@ -75,6 +70,41 @@ checkTop (TData x s cs) = do
     CT -> do
       mapM_ (checkConstr x 3) cs
       extendTypeCon x $ Star 3
+checkTop (TClass x c@(Class v k xs)) = do
+  ctxt <- get
+  when (isJust $ lookup x $ classDefs ctxt) $ throwError $ "Typeclass " ++ x ++ " is already defined"
+  locally $ do
+    extendType v k
+    forM_ xs $ \(_, a) -> checkScheme a
+  extendClassDef x c
+checkTop (TInst className a defs) = do
+  ctxt <- get
+  Class v k sigs <- case lookup className $ classDefs ctxt of
+    Just c -> pure c
+    Nothing -> throwError $ "Cannot define instance for undefined class " ++ className
+  checkType a k
+  let sigs' = map (substSigTVar $ M.singleton v a) sigs
+  unless (sort (map fst defs) == sort (map fst sigs)) $ throwError "Instance does not have same methods as class"
+  forM_ sigs' $ \(x, Forall xs b) -> locally $ do
+    let rhs = fromJust $ lookup x defs
+    mapM_ (uncurry extendType) xs
+    checkExpr rhs b
+  solveAllConstraints
+
+-- Relies on the fact that the scheme does not capture variables in the substitution.
+substSigTVar :: Subst -> (Ident, Scheme) -> (Ident, Scheme)
+substSigTVar s (x, Forall xs a) = (x, Forall xs $ substVar s a)
+
+solveAllConstraints :: TC ()
+solveAllConstraints = do
+  mctxt <- lift get
+  sub <- solveConstraints (constraints mctxt)
+  let mvars = metaVars mctxt
+  let unsolved = S.fromList mvars `S.difference` M.keysSet sub
+  unless (null unsolved) $ throwError $ "Unsolved meta variables: " ++ show unsolved
+  let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
+  forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
+  lift $ put initMCtxt
 
 checkConstr :: Ident -> Int -> Constr -> TC ()
 checkConstr dataName i (Constr x as) = do
@@ -166,6 +196,12 @@ checkPolyLet r x sch@(Forall xs a) t = do
     checkExpr t a
   extend x sch
 
+checkScheme :: Scheme -> TC ()
+checkScheme (Forall xs a) = locally $ do
+  mapM_ (uncurry extendType) xs
+  Star _ <- inferType a
+  pure ()
+
 -- Only to be used once meta variables have been solved.
 checkType :: Type -> Kind -> TC ()
 checkType a k0@(Star i) = do
@@ -198,13 +234,19 @@ extend :: Ident -> Scheme -> TC ()
 extend x a = modify $ \ctxt -> ctxt {vars = (x, a) : vars ctxt}
 
 extendType :: Ident -> Kind -> TC ()
-extendType x a = modify $ \ctxt -> ctxt {typeVars = (x, a) : typeVars ctxt}
+extendType x a = do
+  ctxt <- get
+  when (isJust $ lookup x $ typeVars ctxt) $ throwError $ "Shadowed type variable " ++ x
+  put $ ctxt {typeVars = (x, a) : typeVars ctxt}
 
 extendDataCon :: Ident -> Type -> TC ()
 extendDataCon x a = modify $ \ctxt -> ctxt {dataCons = (x, a) : dataCons ctxt}
 
 extendTypeCon :: Ident -> Kind -> TC ()
 extendTypeCon x a = modify $ \ctxt -> ctxt {typeCons = (x, a) : typeCons ctxt}
+
+extendClassDef :: Ident -> Class -> TC ()
+extendClassDef x c = modify $ \ctxt -> ctxt {classDefs = (x, c) : classDefs ctxt}
 
 hasKind :: Type -> Kind -> TC ()
 hasKind a k = do

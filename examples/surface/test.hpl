@@ -22,3 +22,23 @@ data Maybe :=
   | Nothing;
 
 let rec foo : Maybe = Nothing;
+
+class Num (a :: *1) {
+    add : a -> a -> a;
+    sub : a -> a -> a;
+}
+
+inst Num Int {
+    add = \x y => x + y;
+    sub = \x y => x - y;
+}
+
+let double : [a :: *1]. {Num a} => a -> a =
+    \x => add x x;
+
+/*
+let main : IO () = do {
+    n : Int <- read
+    m : Int <- read
+};
+*/

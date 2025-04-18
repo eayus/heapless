@@ -22,7 +22,45 @@ pProg :: Parser Prog
 pProg = many pTop
 
 pTop :: Parser Top
-pTop = pTLet <|> pTData
+pTop = pTLet <|> pTData <|> pTClass <|> pTInst
+
+pTClass :: Parser Top
+pTClass = do
+  symbol "class"
+  x <- pUpperIdent
+  symbol "("
+  v <- pLowerIdent
+  symbol "::"
+  k <- pKind
+  symbol ")"
+  symbol "{"
+  xs <- sepEndBy1 pSig (symbol ";")
+  symbol "}"
+  pure $ TClass x (Class v k xs)
+
+pTInst :: Parser Top
+pTInst = do
+  symbol "inst"
+  x <- pUpperIdent
+  y <- pTypeAtom
+  symbol "{"
+  xs <- sepEndBy1 pInstDef (symbol ";")
+  symbol "}"
+  pure $ TInst x y xs
+
+pInstDef :: Parser (Ident, Expr)
+pInstDef = do
+  x <- pLowerIdent
+  symbol "="
+  t <- pExpr
+  pure (x, t)
+
+pSig :: Parser (Ident, Scheme)
+pSig = do
+  x <- pLowerIdent
+  symbol ":"
+  a <- pScheme
+  pure (x, a)
 
 pTData :: Parser Top
 pTData = do

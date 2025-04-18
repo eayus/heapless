@@ -45,9 +45,18 @@ data Constr = Constr Ident [Type]
 data Stage = RT | CT
   deriving (Show)
 
+data Class = Class
+  { tvar :: Ident,
+    tvarKind :: Kind,
+    sigs :: [(Ident, Scheme)]
+  }
+  deriving (Show)
+
 data Top
   = TLet Rec Ident Scheme Expr
   | TData Ident Stage [Constr]
+  | TClass Ident Class
+  | TInst Ident Type [(Ident, Expr)]
   deriving (Show)
 
 type Prog = [Top]
