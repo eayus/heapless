@@ -1,6 +1,5 @@
 TODOS:
-- Higher kinded types
-- IO monad
+- Do notation
 
 ---------------------------
 When we call a polymorphic function, we generate meta variables for each type that is quantified.
@@ -19,3 +18,7 @@ it is ok to unify.
 
 Becuase sometimes we want to generate a meta variable and we don't care about the kind, we would also need kind meta variables. I think this would get complicated, particularly in relation to the
 unification needing to check kinds as mentioned above.
+
+-----------------------
+
+For type signatures, kind meta variables would be nice when they can be unambiguously inferred. The complication here is that we have subkinding.

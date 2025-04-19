@@ -7,6 +7,7 @@ import Data.HashMap.Strict qualified as M
 import Data.HashSet qualified as S
 import Data.List
 import Data.Maybe
+import Debug.Trace
 import Surface.Alpha
 import Surface.Syntax
 
@@ -44,7 +45,10 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [] [] [("Int", Star 1),("String", Star 1)] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
+initCtxt = Ctxt [ioPure, ioBind] [] [("Int", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
+  where
+    ioPure = ("ioPure", Forall [("a", Star 1)] [] (TArr (TVar "a") (TApp (TCon "IO") (TVar "a"))))
+    ioBind = ("ioBind", Forall [("a", Star 1), ("b", Star 1)] [] (TArr (TApp (TCon "IO") (TVar "a")) (TArr (TArr (TVar "a") (TApp (TCon "IO") (TVar "b"))) (TApp (TCon "IO") (TVar "b")))))
 
 initMCtxt :: MCtxt
 initMCtxt = MCtxt nameSupply [] [] [] []
@@ -256,7 +260,6 @@ inferType = \case
     case lookup x $ typeCons ctxt of
       Just k -> pure k
       Nothing -> throwError $ "Undefined type constructor " ++ x
-    pure $ Star 1
   TArr a b -> do
     i <- inferTypeStar a
     j <- inferTypeStar b

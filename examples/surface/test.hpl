@@ -21,7 +21,7 @@ data Maybe :=
   | Just (Int -> Int)
   | Nothing;
 
-let rec foo : Maybe = Nothing;
+let foo : Maybe = Nothing;
 
 class Num (a :: *1) {
     add : a -> a -> a;
@@ -40,12 +40,31 @@ let foo : Int = add 3 4;
 
 let name : String = "Ellis";
 
+data Unit =
+  | It;
+
 class Monad (m :: *1 -> *2) {
     pure : [a :: *1]. a -> m a;
+    bind : [a :: *1, b :: *1]. m a -> (a -> m b) -> m b;
 }
 
-let void : [m :: *1 -> *2]. {Monad m} => m Int =
-    pure 0;
+let void : [m :: *1 -> *2]. {Monad m} => m Unit =
+    pure It;
+
+
+inst Monad IO {
+    pure = ioPure;
+    bind = ioBind;
+}
+
+let main : IO Unit = pure It;
+
+// Intererestingly we cannot define 'join' if monads have kind "*1 -> *2", as the type "m (m a)" is invalid.
+// It begs the fundamental question - why is this disallowed? As long as the definition is non-recursive, perhaps kind checking should be disabled entirely?
+// Perhaps the type of a monad is more like "forall i. *i -> *(suc i)"
+
+// let join : [m :: *1 -> *2, a :: *1]. {Monad m} => m (m a) -> m a =
+//     \x => bind x (\y => y);
 
 // Implement FizzBuzz
 
