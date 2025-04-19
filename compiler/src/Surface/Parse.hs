@@ -151,9 +151,12 @@ pExprAtom = choice [pEStr, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr
       EIf x y <$> pExpr
 
 pType :: Parser Type
-pType = makeExprParser pTypeAtom ops
+pType = makeExprParser pTypeApps ops
   where
     ops = [[InfixR (TArr <$ symbol "->")]]
+
+pTypeApps :: Parser Type
+pTypeApps = foldl1 TApp <$> some pTypeAtom
 
 pTypeAtom :: Parser Type
 pTypeAtom = choice [TVar <$> pLowerIdent, TCon <$> pUpperIdent, parens pType]
@@ -197,7 +200,10 @@ pConstr = do
   pure $ Constr x as
 
 pKind :: Parser Kind
-pKind = choice [Star 1 <$ symbol "*1", Star 2 <$ symbol "*2", Star 3 <$ symbol "*3"]
+pKind = makeExprParser pKindAtom [[InfixR (KFunc <$ symbol "->")]]
+  
+pKindAtom :: Parser Kind
+pKindAtom = choice [Star 1 <$ symbol "*1", Star 2 <$ symbol "*2", Star 3 <$ symbol "*3"]
 
 pLowerIdent :: Parser Ident
 pLowerIdent = try $ lexeme $ do

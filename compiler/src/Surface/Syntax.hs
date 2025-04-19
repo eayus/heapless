@@ -16,10 +16,13 @@ data Type
   = TVar Ident -- Lowercase type variable
   | TCon Ident -- Uppercase type constructor
   | TArr Type Type -- Arrow type
+  | TApp Type Type -- Type-level application (e.g. "m a")
   | TMeta Ident -- Meta variable, only used during type checking (user cannot create this)
   deriving (Eq, Show)
 
-newtype Kind = Star Int
+data Kind
+  = Star Int
+  | KFunc Kind Kind
   deriving (Eq, Show)
 
 data Scheme = Forall

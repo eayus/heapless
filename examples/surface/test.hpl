@@ -40,6 +40,15 @@ let foo : Int = add 3 4;
 
 let name : String = "Ellis";
 
+class Monad (m :: *1 -> *2) {
+    pure : [a :: *1]. a -> m a;
+}
+
+let void : [m :: *1 -> *2]. {Monad m} => m Int =
+    pure 0;
+
+// Implement FizzBuzz
+
 /*
 let main : IO () = do {
     n : Int <- read

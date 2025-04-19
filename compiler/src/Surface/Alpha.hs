@@ -11,6 +11,7 @@ typeFrees = \case
   TVar x -> S.singleton x
   TArr a b -> typeFrees a `S.union` typeFrees b
   TMeta _ -> S.empty
+  TApp a b -> typeFrees a `S.union` typeFrees b
   TCon _ -> S.empty
 
 substVar :: Subst -> Type -> Type
@@ -19,6 +20,7 @@ substVar sub = \case
     Just a -> a
     Nothing -> TVar x
   TArr a b -> TArr (substVar sub a) (substVar sub b)
+  TApp a b  -> TApp (substVar sub a) (substVar sub b)
   TMeta n -> TMeta n
   TCon x -> TCon x
 
@@ -28,6 +30,7 @@ substMeta sub = \case
     Just a -> a
     Nothing -> TMeta x
   TArr a b -> TArr (substMeta sub a) (substMeta sub b)
+  TApp a b -> TApp (substMeta sub a) (substMeta sub b)
   TVar x -> TVar x
   TCon x -> TCon x
 
@@ -38,5 +41,6 @@ metaFrees :: Type -> S.HashSet Ident
 metaFrees = \case
   TVar _ -> S.empty
   TArr a b -> metaFrees a `S.union` metaFrees b
+  TApp a b -> metaFrees a `S.union` metaFrees b
   TMeta x -> S.singleton x
   TCon _ -> S.empty

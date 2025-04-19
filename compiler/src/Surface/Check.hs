@@ -203,7 +203,7 @@ checkPolyLet r x sch@(Forall xs cs a) t = do
   locally $ do
     mapM_ (uncurry extendType) xs
     mapM_ checkClassConstraint cs
-    Star i <- inferType a
+    i <- inferTypeStar a
     when (r == Rec) $ do
       when (i == 3) $ throwError "Higher-order functions are not allowed to be recursive"
       extend x sch
@@ -223,14 +223,26 @@ checkScheme :: Scheme -> TC ()
 checkScheme (Forall xs cs a) = locally $ do
   mapM_ (uncurry extendType) xs
   mapM_ checkClassConstraint cs
-  Star _ <- inferType a
+  _ <- inferTypeStar a
   pure ()
 
 -- Only to be used once meta variables have been solved.
 checkType :: Type -> Kind -> TC ()
-checkType a k0@(Star i) = do
-  k1@(Star j) <- inferType a
-  unless (j <= i) $ throwError $ "Expected type " ++ show a ++ " to have kind " ++ show k0 ++ " but it has kind " ++ show k1
+checkType a k0 = do
+  k1 <- inferType a
+  unless (isSubKind k1 k0) $ throwError $ "Expected type " ++ show a ++ " to have kind " ++ show k0 ++ " but it has kind " ++ show k1
+
+isSubKind :: Kind -> Kind -> Bool
+isSubKind (Star i) (Star j) = i <= j
+isSubKind (KFunc kd0 kr0) (KFunc kd1 kr1) = isSubKind kd1 kd0 && isSubKind kr0 kr1
+isSubKind _ _ = False
+
+inferTypeStar :: Type -> TC Int
+inferTypeStar a = do
+  k <- inferType a
+  case k of
+    Star i -> pure i
+    _ -> throwError "Expected a type of kind *"
 
 inferType :: Type -> TC Kind
 inferType = \case
@@ -246,9 +258,14 @@ inferType = \case
       Nothing -> throwError $ "Undefined type constructor " ++ x
     pure $ Star 1
   TArr a b -> do
-    Star i <- inferType a
-    Star j <- inferType b
+    i <- inferTypeStar a
+    j <- inferTypeStar b
     pure $ Star $ max (suc i) j
+  TApp a b -> do
+    k <- inferType a
+    case k of
+      KFunc k0 k1 -> k1 <$ checkType b k0
+      _ -> throwError $ "Cannot type level apply the type " ++ show a ++ " of kind " ++ show k
   TMeta {} -> error "Meta variable encountered when trying to infer the kind for a type!"
 
 suc :: Int -> Int
@@ -320,6 +337,10 @@ mgu a (TMeta x) = setMeta x a
 mgu (TVar x0) (TVar x1) | x0 == x1 = pure M.empty
 mgu (TCon x0) (TCon x1) | x0 == x1 = pure M.empty
 mgu (TArr a0 b0) (TArr a1 b1) = do
+  s0 <- mgu a0 a1
+  s1 <- mgu (substMeta s0 b0) (substMeta s0 b1)
+  pure $ s1 @@ s0
+mgu (TApp a0 b0) (TApp a1 b1) = do
   s0 <- mgu a0 a1
   s1 <- mgu (substMeta s0 b0) (substMeta s0 b1)
   pure $ s1 @@ s0
