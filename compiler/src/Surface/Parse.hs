@@ -114,7 +114,7 @@ pApps = do
   pure $ foldl1 EApp xs
 
 pExprAtom :: Parser Expr
-pExprAtom = choice [pEStr, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
+pExprAtom = choice [pEDo, pEStr, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
   where
     pELam = do
       symbol "\\"
@@ -149,6 +149,19 @@ pExprAtom = choice [pEStr, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr
       y <- pExpr
       symbol "else"
       EIf x y <$> pExpr
+
+    pEDo = do
+      symbol "do"
+      symbol "{"
+      xs <- many $ try $ do
+        x <- pLowerIdent
+        symbol "<-"
+        t <- pExpr
+        symbol ";"
+        pure (x, t)
+      t <- pExpr
+      symbol "}"
+      pure $ EDo xs t
 
 pType :: Parser Type
 pType = makeExprParser pTypeApps ops
@@ -237,7 +250,7 @@ stringLiteral :: Parser String
 stringLiteral = char '\"' *> manyTill L.charLiteral (char '\"')
 
 reserved :: [String]
-reserved = ["let", "rec", "data", "\\", "Λ", "if", "then", "else", "type"]
+reserved = ["let", "rec", "data", "\\", "Λ", "if", "then", "else", "type", "do"]
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc

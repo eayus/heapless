@@ -57,14 +57,16 @@ inst Monad IO {
     bind = ioBind;
 }
 
-let main : IO Unit = pure It;
+let main : IO Unit = do {
+    x <- pure It;
+    pure x
+};
 
-// Intererestingly we cannot define 'join' if monads have kind "*1 -> *2", as the type "m (m a)" is invalid.
-// It begs the fundamental question - why is this disallowed? As long as the definition is non-recursive, perhaps kind checking should be disabled entirely?
-// Perhaps the type of a monad is more like "forall i. *i -> *(suc i)"
-
-// let join : [m :: *1 -> *2, a :: *1]. {Monad m} => m (m a) -> m a =
-//     \x => bind x (\y => y);
+// Join only works on monads which are *1 -> *1, as otherwise m (m a) is invalid.
+let join : [m :: *1 -> *1, a :: *1]. {Monad m} => m (m a) -> m a = \x => do {
+    y <- x;
+    y
+};
 
 // Implement FizzBuzz
 

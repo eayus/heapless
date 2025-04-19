@@ -45,6 +45,7 @@ data Expr
   | ECon Ident
   | EIf Expr Expr Expr
   | EBin BinOp Expr Expr
+  | EDo [(Ident, Expr)] Expr
   deriving (Show)
 
 data Constr = Constr Ident [Type]

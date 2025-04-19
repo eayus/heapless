@@ -189,6 +189,17 @@ inferExpr = \case
   EBin BAdd x y -> checkArith x y
   EBin BSub x y -> checkArith x y
   EBin BMul x y -> checkArith x y
+  EDo ts t -> do
+    m <- meta
+    hasClass "Monad" m
+    locally $ do
+      forM_ ts $ \(x, u) -> do
+        a <- meta
+        checkExpr u (TApp m a)
+        extend x (Forall [] [] a)
+      a <- meta
+      checkExpr t (TApp m a)
+      pure (TApp m a)
 
 checkIntCmp :: Expr -> Expr -> TC Type
 checkIntCmp x y = do
