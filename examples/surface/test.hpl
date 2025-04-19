@@ -62,13 +62,50 @@ let main : IO Unit = do {
     pure x
 };
 
+class Printable (a :: *1) {
+    print : a -> IO Unit;
+}
+
+inst Printable Int {
+    print = printInt;
+}
+
+inst Printable String {
+    print = printStr;
+}
+
+class Eq (a :: *1) {
+    eq : a -> a -> Bool;
+}
+
+inst Eq Int {
+    eq = eqInt;
+}
+
 // Join only works on monads which are *1 -> *1, as otherwise m (m a) is invalid.
 let join : [m :: *1 -> *1, a :: *1]. {Monad m} => m (m a) -> m a = \x => do {
     y <- x;
     y
 };
 
+
 // Implement FizzBuzz
+
+let divides : Int -> Int -> Bool =
+    \n m => remainder n m == 0;
+
+
+/*
+let step : Int -> IO Unit = \n =>
+    let div3 = divides n 3;
+    let div5 = divides n 5;
+    if div3 then print "Fizz" else
+    if div5 then print "Buzz" else
+    if div3 && div 5 then print "FizzBuzz" else
+    print n;
+
+let fizzbuzz : Int -> IO Unit = \n => traverse step (upto 1 n);
+*/
 
 /*
 let main : IO () = do {

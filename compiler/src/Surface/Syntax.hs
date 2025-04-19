@@ -10,6 +10,9 @@ data BinOp
   | BAdd
   | BSub
   | BMul
+  | BAnd
+  | BOr
+  | BEq
   deriving (Show)
 
 data Type

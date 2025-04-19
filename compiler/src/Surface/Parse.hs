@@ -96,10 +96,14 @@ pExpr :: Parser Expr
 pExpr = makeExprParser pApps ops
   where
     ops =
-      [ [ InfixL (EBin BLTE <$ symbol "<="),
+      [ [ InfixL (EBin BAnd <$ symbol "&&"),
+          InfixL (EBin BOr <$ symbol "||")
+        ],
+        [ InfixL (EBin BLTE <$ symbol "<="),
           InfixL (EBin BLT <$ symbol "<"),
           InfixL (EBin BGTE <$ symbol ">="),
-          InfixL (EBin BGT <$ symbol ">")
+          InfixL (EBin BGT <$ symbol ">"),
+          InfixL (EBin BEq <$ symbol "==")
         ],
         [ InfixL (EBin BAdd <$ symbol "+"),
           InfixL (EBin BAdd <$ symbol "-")
@@ -214,7 +218,7 @@ pConstr = do
 
 pKind :: Parser Kind
 pKind = makeExprParser pKindAtom [[InfixR (KFunc <$ symbol "->")]]
-  
+
 pKindAtom :: Parser Kind
 pKindAtom = choice [Star 1 <$ symbol "*1", Star 2 <$ symbol "*2", Star 3 <$ symbol "*3"]
 

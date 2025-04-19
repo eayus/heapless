@@ -7,7 +7,6 @@ import Data.HashMap.Strict qualified as M
 import Data.HashSet qualified as S
 import Data.List
 import Data.Maybe
-import Debug.Trace
 import Surface.Alpha
 import Surface.Syntax
 
@@ -45,10 +44,15 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [ioPure, ioBind] [] [("Int", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
+initCtxt = Ctxt [ioPure, ioBind, printInt, printStr, eqInt, eqBool, remainder] [] [("Int", Star 1), ("Bool", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
   where
     ioPure = ("ioPure", Forall [("a", Star 1)] [] (TArr (TVar "a") (TApp (TCon "IO") (TVar "a"))))
     ioBind = ("ioBind", Forall [("a", Star 1), ("b", Star 1)] [] (TArr (TApp (TCon "IO") (TVar "a")) (TArr (TArr (TVar "a") (TApp (TCon "IO") (TVar "b"))) (TApp (TCon "IO") (TVar "b")))))
+    printInt = ("printInt", Forall [] [] (TArr (TCon "Int") (TApp (TCon "IO") (TCon "Unit"))))
+    printStr = ("printStr", Forall [] [] (TArr (TCon "String") (TApp (TCon "IO") (TCon "Unit"))))
+    eqInt = ("eqInt", Forall [] [] (TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool"))))
+    eqBool = ("eqBool", Forall [] [] (TArr (TCon "Bool") (TArr (TCon "Bool") (TCon "Bool"))))
+    remainder = ("remainder", Forall [] [] (TArr (TCon "Int") (TArr (TCon "Int") (TCon "Int"))))
 
 initMCtxt :: MCtxt
 initMCtxt = MCtxt nameSupply [] [] [] []
@@ -189,6 +193,14 @@ inferExpr = \case
   EBin BAdd x y -> checkArith x y
   EBin BSub x y -> checkArith x y
   EBin BMul x y -> checkArith x y
+  EBin BAnd x y -> checkLogic x y
+  EBin BOr x y -> checkLogic x y
+  EBin BEq x y -> do
+    a <- meta
+    hasClass "Eq" a
+    checkExpr x a
+    checkExpr y a
+    pure $ TCon "Bool"
   EDo ts t -> do
     m <- meta
     hasClass "Monad" m
@@ -212,6 +224,12 @@ checkArith x y = do
   checkExpr x $ TCon "Int"
   checkExpr y $ TCon "Int"
   pure $ TCon "Int"
+
+checkLogic :: Expr -> Expr -> TC Type
+checkLogic x y = do
+  checkExpr x $ TCon "Bool"
+  checkExpr y $ TCon "Bool"
+  pure $ TCon "Bool"
 
 checkPolyLet :: Rec -> Ident -> Scheme -> Expr -> TC ()
 checkPolyLet r x sch@(Forall xs cs a) t = do
