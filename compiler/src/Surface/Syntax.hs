@@ -30,7 +30,7 @@ data Kind
 
 data Scheme = Forall
   { schTypeVars :: [(Ident, Kind)],
-    schClassConstraints :: [(Ident, Type)], -- Class name, type var
+    schClassConstraints :: [(Ident, [Type])], -- Class name, type vars
     schBody :: Type
   }
   deriving (Show)
@@ -69,8 +69,7 @@ data Stage = RT | CT
   deriving (Show)
 
 data Class = Class
-  { tvar :: Ident,
-    tvarKind :: Kind,
+  { tvars :: [(Ident, Kind)],
     sigs :: [(Ident, Scheme)]
   }
   deriving (Show)
@@ -79,7 +78,7 @@ data Top
   = TLet Rec Ident Scheme Expr
   | TData New Rec Ident Stage [Constr]
   | TClass Ident Class
-  | TInst Ident Type [(Ident, Expr)]
+  | TInst Ident [Type] [(Ident, Expr)]
   deriving (Show)
 
 type Prog = [Top]

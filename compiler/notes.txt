@@ -1,6 +1,6 @@
 TODOS:
 - Tidy code
-- Multiparam typeclasses
+    - Make separate type for class constraints
 - Sub-Typeclass constraints (e.g. Functor f => Applicative f)
 - Make fold operator actually a fold.
 - Disallow non-strictly positive data.

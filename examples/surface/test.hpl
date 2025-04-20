@@ -171,6 +171,19 @@ let boolToInt : Bool -> Int =
         True => 1;
     };
 
+class To (a :: *1) (b :: *1) {
+    to : a -> b;
+}
+
+inst To Bool Int {
+    to = \b => fold b {
+        False => 0;
+        True => 1;
+    };
+}
+
+let bar : Bool -> Int = \b => (to b) * 2;
+
 // Example: UART
 
 /*

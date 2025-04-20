@@ -28,21 +28,23 @@ pTClass :: Parser Top
 pTClass = do
   symbol "class"
   x <- pUpperIdent
-  symbol "("
-  v <- pLowerIdent
-  symbol "::"
-  k <- pKind
-  symbol ")"
+  ts <- some $ do
+    symbol "("
+    v <- pLowerIdent
+    symbol "::"
+    k <- pKind
+    symbol ")"
+    pure (v, k)
   symbol "{"
   xs <- sepEndBy1 pSig (symbol ";")
   symbol "}"
-  pure $ TClass x (Class v k xs)
+  pure $ TClass x (Class ts xs)
 
 pTInst :: Parser Top
 pTInst = do
   symbol "inst"
   x <- pUpperIdent
-  y <- pTypeAtom
+  y <- some pTypeAtom
   symbol "{"
   xs <- sepEndBy1 pInstDef (symbol ";")
   symbol "}"
@@ -232,7 +234,7 @@ pScheme = do
       sepEndBy1
         ( do
             c <- pUpperIdent
-            x <- pTypeAtom
+            x <- some pTypeAtom
             pure (c, x)
         )
         (symbol ",")
