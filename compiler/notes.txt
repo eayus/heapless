@@ -1,5 +1,7 @@
 TODOS:
-- Do notation
+- Make fold operator actually a fold.
+- Disallow non-strictly positive data.
+- Polymorphic data
 
 ---------------------------
 When we call a polymorphic function, we generate meta variables for each type that is quantified.

@@ -38,6 +38,12 @@ data Scheme = Forall
 data Rec = Rec | NoRec
   deriving (Eq, Show)
 
+data Pat = Pat
+  { con :: Ident,
+    args :: [Ident]
+  }
+  deriving (Show)
+
 data Expr
   = EVar Ident
   | ELam [Ident] Expr
@@ -45,10 +51,12 @@ data Expr
   | ELet Rec Ident (Maybe Scheme) Expr Expr
   | EInt Integer
   | EStr String
+  | EChar Char
   | ECon Ident
   | EIf Expr Expr Expr
   | EBin BinOp Expr Expr
   | EDo [(Ident, Expr)] Expr
+  | EFold Expr [(Pat, Expr)]
   deriving (Show)
 
 data Constr = Constr Ident [Type]
@@ -66,7 +74,7 @@ data Class = Class
 
 data Top
   = TLet Rec Ident Scheme Expr
-  | TData Ident Stage [Constr]
+  | TData Rec Ident Stage [Constr]
   | TClass Ident Class
   | TInst Ident Type [(Ident, Expr)]
   deriving (Show)

@@ -74,6 +74,10 @@ inst Printable String {
     print = printStr;
 }
 
+inst Printable Char {
+    print = printChar;
+}
+
 class Eq (a :: *1) {
     eq : a -> a -> Bool;
 }
@@ -94,6 +98,47 @@ let join : [m :: *1 -> *1, a :: *1]. {Monad m} => m (m a) -> m a = \x => do {
 let divides : Int -> Int -> Bool =
     \n m => remainder n m == 0;
 
+
+// Not every data type is foldable (non-strictly positive). Perhaps we should define a functor and do the fixpoint pattern.
+data rec List :=
+  | Nil
+  | Cons Int List;
+
+let sum : List -> Int =
+    \xs => fold xs {
+        Nil => 0;
+        Cons n m => n; // TODO: Do a fold and not a case! 'm' is still a List!
+    };
+
+
+// Perhaps the Monad typeclass should work for any i and j:
+/*
+class Monad (m :: *i -> *j)
+*/
+// Interestingly, Monads are endofunctors, but we can define do-notation, bind and pure for non-endofunctors. What is
+// the name of this superset of Monads?
+// Perhaps our Monad class should be called "Bindable" or something like that, as it is not theoretically a Monad.
+
+/*
+
+data rec List (a :: *1) :=
+  | Nil
+  | Cons a (List a);
+
+class Writable (a :: *1) {
+    write : a -> List Char;
+}
+
+let print : [a :: *1]. {Writable a} => a -> IO () =
+    \x => fold (write x) {
+        Nil => pure ();
+        Cons c io => do {
+            _ <- printChar c;
+            io
+        }
+    };
+
+*/
 
 /*
 let step : Int -> IO Unit = \n =>

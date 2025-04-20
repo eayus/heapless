@@ -44,12 +44,13 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [ioPure, ioBind, printInt, printStr, eqInt, eqBool, remainder] [] [("Int", Star 1), ("Bool", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
+initCtxt = Ctxt [ioPure, ioBind, printInt, printStr, printChar, eqInt, eqBool, remainder] [] [("Int", Star 1), ("Bool", Star 1), ("Char", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
   where
     ioPure = ("ioPure", Forall [("a", Star 1)] [] (TArr (TVar "a") (TApp (TCon "IO") (TVar "a"))))
     ioBind = ("ioBind", Forall [("a", Star 1), ("b", Star 1)] [] (TArr (TApp (TCon "IO") (TVar "a")) (TArr (TArr (TVar "a") (TApp (TCon "IO") (TVar "b"))) (TApp (TCon "IO") (TVar "b")))))
     printInt = ("printInt", Forall [] [] (TArr (TCon "Int") (TApp (TCon "IO") (TCon "Unit"))))
     printStr = ("printStr", Forall [] [] (TArr (TCon "String") (TApp (TCon "IO") (TCon "Unit"))))
+    printChar = ("printChar", Forall [] [] (TArr (TCon "Char") (TApp (TCon "IO") (TCon "Unit"))))
     eqInt = ("eqInt", Forall [] [] (TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool"))))
     eqBool = ("eqBool", Forall [] [] (TArr (TCon "Bool") (TArr (TCon "Bool") (TCon "Bool"))))
     remainder = ("remainder", Forall [] [] (TArr (TCon "Int") (TArr (TCon "Int") (TCon "Int"))))
@@ -69,17 +70,23 @@ checkTop :: Top -> TC ()
 checkTop (TLet r x a t) = withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
   checkPolyLet r x a t
   solveAllConstraints
-checkTop (TData x s cs) = do
+checkTop (TData r x s cs) = do
   ctxt <- get
   lift $ put initMCtxt
   when (x `elem` map fst (typeCons ctxt)) $ throwError $ "Data type " ++ x ++ " is already defined"
   case s of
     RT -> do
+      when (r == Rec) $ throwError "Runtime data types cannot be recursive"
       mapM_ (checkConstr x 1) cs
       extendTypeCon x $ Star 1
-    CT -> do
-      mapM_ (checkConstr x 3) cs
-      extendTypeCon x $ Star 3
+    CT ->
+      if r == Rec
+        then do
+          extendTypeCon x $ Star 3
+          mapM_ (checkConstr x 3) cs
+        else do
+          mapM_ (checkConstr x 3) cs
+          extendTypeCon x $ Star 3
 checkTop (TClass x c@(Class v k xs)) = do
   ctxt <- get
   when (isJust $ lookup x $ classDefs ctxt) $ throwError $ "Typeclass " ++ x ++ " is already defined"
@@ -180,6 +187,7 @@ inferExpr = \case
     inferExpr u
   EInt _ -> pure $ TCon "Int"
   EStr _ -> pure $ TCon "String"
+  EChar _ -> pure $ TCon "Char"
   EIf x y z -> do
     checkExpr x $ TCon "Bool"
     a <- meta
@@ -212,6 +220,17 @@ inferExpr = \case
       a <- meta
       checkExpr t (TApp m a)
       pure (TApp m a)
+  EFold x cs -> do
+    a <- inferExpr x
+    b <- meta
+    forM_ cs $ \(Pat c xs, rhs) -> locally $ do
+      forM_ xs $ \v -> do
+        c <- meta
+        extend v (Forall [] [] c)
+      let patExpr = foldl EApp (ECon c) (map EVar xs)
+      checkExpr patExpr a
+      checkExpr rhs b
+    pure b
 
 checkIntCmp :: Expr -> Expr -> TC Type
 checkIntCmp x y = do

@@ -65,11 +65,12 @@ pSig = do
 pTData :: Parser Top
 pTData = do
   symbol "data"
+  r <- pRec
   x <- pUpperIdent
   s <- pStage
   cs <- many pConstr
   symbol ";"
-  pure $ TData x s cs
+  pure $ TData r x s cs
 
 pTLet :: Parser Top
 pTLet = do
@@ -91,6 +92,12 @@ pRec =
 
 pStage :: Parser Stage
 pStage = choice [CT <$ symbol ":=", RT <$ symbol "="]
+
+pPat :: Parser Pat
+pPat = do
+  c <- pUpperIdent
+  xs <- many pLowerIdent
+  pure $ Pat c xs
 
 pExpr :: Parser Expr
 pExpr = makeExprParser pApps ops
@@ -118,7 +125,7 @@ pApps = do
   pure $ foldl1 EApp xs
 
 pExprAtom :: Parser Expr
-pExprAtom = choice [pEDo, pEStr, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
+pExprAtom = choice [pEDo, pEFold, pEStr, pEChar, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
   where
     pELam = do
       symbol "\\"
@@ -144,6 +151,8 @@ pExprAtom = choice [pEDo, pEStr, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens
 
     pEStr = lexeme $ EStr <$> stringLiteral
 
+    pEChar = lexeme $ EChar <$> charLiteral
+
     pECon = ECon <$> pUpperIdent
 
     pEIf = do
@@ -166,6 +175,22 @@ pExprAtom = choice [pEDo, pEStr, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens
       t <- pExpr
       symbol "}"
       pure $ EDo xs t
+
+    pEFold = do
+      symbol "fold"
+      t <- pExpr
+      symbol "{"
+      xs <-
+        sepEndBy1
+          ( do
+              p <- pPat
+              symbol "=>"
+              u <- pExpr
+              pure (p, u)
+          )
+          (symbol ";")
+      symbol "}"
+      pure $ EFold t xs
 
 pType :: Parser Type
 pType = makeExprParser pTypeApps ops
@@ -253,8 +278,11 @@ parens = between (symbol "(") (symbol ")")
 stringLiteral :: Parser String
 stringLiteral = char '\"' *> manyTill L.charLiteral (char '\"')
 
+charLiteral :: Parser Char
+charLiteral = char '\'' *> L.charLiteral <* char '\''
+
 reserved :: [String]
-reserved = ["let", "rec", "data", "\\", "Λ", "if", "then", "else", "type", "do"]
+reserved = ["let", "rec", "data", "\\", "Λ", "if", "then", "else", "type", "do", "fold"]
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
