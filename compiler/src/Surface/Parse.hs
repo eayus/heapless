@@ -65,12 +65,13 @@ pSig = do
 pTData :: Parser Top
 pTData = do
   symbol "data"
+  n <- pNew
   r <- pRec
   x <- pUpperIdent
   s <- pStage
   cs <- many pConstr
   symbol ";"
-  pure $ TData r x s cs
+  pure $ TData n r x s cs
 
 pTLet :: Parser Top
 pTLet = do
@@ -89,6 +90,12 @@ pRec =
   optional (symbol "rec") >>= \case
     Nothing -> pure NoRec
     Just () -> pure Rec
+
+pNew :: Parser New
+pNew =
+  optional (symbol "new") >>= \case
+    Nothing -> pure NoNew
+    Just () -> pure New
 
 pStage :: Parser Stage
 pStage = choice [CT <$ symbol ":=", RT <$ symbol "="]

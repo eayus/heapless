@@ -16,7 +16,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.control.heapless",
-				"match": "\\b(if|then|else|let|rec|data|class|inst|do)\\b"
+				"match": "\\b(if|then|else|let|rec|data|class|inst|do|fold|case|new)\\b"
 			},{
 				"name": "variable.heapless",
 				"match": "\\b[A-Z][a-zA-Z]*\\b"

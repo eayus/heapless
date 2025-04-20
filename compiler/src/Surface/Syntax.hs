@@ -38,6 +38,9 @@ data Scheme = Forall
 data Rec = Rec | NoRec
   deriving (Eq, Show)
 
+data New = New | NoNew
+  deriving (Eq, Show)
+
 data Pat = Pat
   { con :: Ident,
     args :: [Ident]
@@ -74,7 +77,7 @@ data Class = Class
 
 data Top
   = TLet Rec Ident Scheme Expr
-  | TData Rec Ident Stage [Constr]
+  | TData New Rec Ident Stage [Constr]
   | TClass Ident Class
   | TInst Ident Type [(Ident, Expr)]
   deriving (Show)

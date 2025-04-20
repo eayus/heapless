@@ -115,6 +115,8 @@ let sum : List -> Int =
 /*
 class Monad (m :: *i -> *j)
 */
+// Actually, if we choose the most flexible kind *1 -> *3, everything will be a subtype, is there a disadvantage to this?
+//      replicateM_ can still be defined by restricting m to *1 -> *2, which will be a subtype of *1 -> *3.
 // Interestingly, Monads are endofunctors, but we can define do-notation, bind and pure for non-endofunctors. What is
 // the name of this superset of Monads?
 // Perhaps our Monad class should be called "Bindable" or something like that, as it is not theoretically a Monad.
@@ -157,4 +159,40 @@ let main : IO () = do {
     n : Int <- read
     m : Int <- read
 };
+*/
+
+data new Foo := | Foo Int;
+
+let x : Foo = Foo 3;
+
+let boolToInt : Bool -> Int =
+    \b => fold b {
+        False => 0;
+        True => 1;
+    };
+
+// Example: UART
+
+/*
+class MonadMemory (m :: *1 -> *2) {
+    read : Int -> m Int;
+    write : Int -> Int -> m Unit;
+}
+
+data RAM (a :: *1) :=
+  | RAM (Int -> IO a);
+
+inst MonadMemory RAM {
+    read = \i => RAM (\base => readRAM (base + i));
+    write = \i x => RAM (\base => writeRAM (base + i) x);
+}
+
+let runRAM : [a :: *1]. Int -> RAM a -> IO a =
+    \base ram => case ram { RAM f => f base };
+
+data LCR :=
+  | LCR Int Bool Bool Bool Bool Bool Bool;
+
+let encodeLCR : LCR -> Int =
+    \lcr => case lcr { LCR wl sb pe ep fp sb dl => _ };
 */

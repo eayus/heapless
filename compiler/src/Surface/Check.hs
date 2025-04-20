@@ -70,23 +70,37 @@ checkTop :: Top -> TC ()
 checkTop (TLet r x a t) = withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
   checkPolyLet r x a t
   solveAllConstraints
-checkTop (TData r x s cs) = do
+checkTop (TData n r x s cs) = do
   ctxt <- get
   lift $ put initMCtxt
   when (x `elem` map fst (typeCons ctxt)) $ throwError $ "Data type " ++ x ++ " is already defined"
   case s of
     RT -> do
+      when (n == New) $ throwError "Newtypes must be removed at comptime (use ':=')"
       when (r == Rec) $ throwError "Runtime data types cannot be recursive"
       mapM_ (checkConstr x 1) cs
       extendTypeCon x $ Star 1
     CT ->
-      if r == Rec
+      if n == New
         then do
-          extendTypeCon x $ Star 3
-          mapM_ (checkConstr x 3) cs
-        else do
-          mapM_ (checkConstr x 3) cs
-          extendTypeCon x $ Star 3
+          when (r == Rec) $ throwError "Newtypes cannot be recursive"
+          case cs of
+            [Constr c [a]] -> do
+              ctxt <- get
+              when (c `elem` map fst (dataCons ctxt)) $ throwError $ "Data constructor " ++ c ++ " is already defined"
+              i <- inferTypeStar a
+              extendTypeCon x (Star i)
+              extendDataCon c $ TArr a (TCon x)
+            [_] -> throwError "Newtypes constructors must only have a single argument"
+            _ -> throwError "Newtypes can only have a single constructor"
+        else
+          if r == Rec
+            then do
+              extendTypeCon x $ Star 3
+              mapM_ (checkConstr x 3) cs
+            else do
+              mapM_ (checkConstr x 3) cs
+              extendTypeCon x $ Star 3
 checkTop (TClass x c@(Class v k xs)) = do
   ctxt <- get
   when (isJust $ lookup x $ classDefs ctxt) $ throwError $ "Typeclass " ++ x ++ " is already defined"
