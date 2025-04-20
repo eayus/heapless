@@ -6,6 +6,15 @@ import Surface.Syntax
 
 type Subst = M.HashMap Ident Type
 
+-- To avoid so much duplication, perhaps we should have a single constructor
+-- for variables of all kinds (type, meta, etc.).
+-- i.e.
+--   | EVar Variable
+--
+--   data Variable
+--     = TVar ..
+--     | TMeta ..
+
 typeFrees :: Type -> S.HashSet Ident
 typeFrees = \case
   TVar x -> S.singleton x
