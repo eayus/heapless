@@ -1,0 +1,5 @@
+data Id (a :: *2) :=
+  | Id a;
+
+
+let rec foo : Int -> Id (Int -> Int) = foo;

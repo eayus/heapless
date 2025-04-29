@@ -6,8 +6,7 @@ import Core.Norm.Reify
 import Core.Parse
 import Core.Uncurry
 import LL.Codegen
-import Surface.Parse qualified as S
-import Surface.Check qualified as S
+import Surface.Check.Rules qualified as S
 import System.Environment
 import System.Process
 import UC.LambdaLift
@@ -23,10 +22,8 @@ main =
 surface :: ExceptT String IO ()
 surface = do
   [filepath] <- lift getArgs
-  prog <- S.parseFile filepath
-  S.typecheck prog
+  S.typecheckFile filepath
   lift $ putStrLn "OK!"
-  -- lift $ print prog
 
 -- Process core lanugage
 go :: ExceptT String IO ()

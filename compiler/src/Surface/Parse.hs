@@ -43,7 +43,7 @@ pTClass = do
     symbol ")"
     pure (v, k)
   symbol "{"
-  xs <- sepEndBy1 pSig (symbol ";")
+  xs <- map (uncurry Sig) <$> sepEndBy1 pSig (symbol ";")
   symbol "}"
   pure $ TClass x (Class ts xs)
 
@@ -55,7 +55,7 @@ pTInst = do
   symbol "{"
   xs <- sepEndBy1 pInstDef (symbol ";")
   symbol "}"
-  pure $ TInst x y xs
+  pure $ TInst $ Instance (InstanceSig x y) xs
 
 pInstDef :: Parser (Ident, Expr)
 pInstDef = do
@@ -74,7 +74,6 @@ pSig = do
 pTData :: Parser Top
 pTData = do
   symbol "data"
-  n <- pNew
   r <- pRec
   x <- pUpperIdent
   xs <- many $ parens $ do
@@ -85,7 +84,7 @@ pTData = do
   s <- pStage
   cs <- many pConstr
   symbol ";"
-  pure $ TData n r x s xs cs
+  pure $ TData $ DataDef x r s xs cs
 
 pTLet :: Parser Top
 pTLet = do
@@ -104,12 +103,6 @@ pRec =
   optional (keyword "rec") >>= \case
     Nothing -> pure NoRec
     Just () -> pure Rec
-
-pNew :: Parser New
-pNew =
-  optional (symbol "new") >>= \case
-    Nothing -> pure NoNew
-    Just () -> pure New
 
 pStage :: Parser Stage
 pStage = choice [CT <$ symbol ":=", RT <$ symbol "="]
@@ -149,7 +142,7 @@ pApps = do
   pure $ foldl1 EApp xs
 
 pExprAtom :: Parser Expr
-pExprAtom = choice [pEDo, pEFold, pEStr, pEChar, pECon, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
+pExprAtom = choice [pEDo, pEFold, pEStr, pEChar, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
   where
     pELam = do
       symbol "\\"
@@ -169,15 +162,13 @@ pExprAtom = choice [pEDo, pEFold, pEStr, pEChar, pECon, pEIf, pELam, pELet, pEVa
       symbol ";"
       ELet r x a t <$> pExpr
 
-    pEVar = EVar <$> pLowerIdent
+    pEVar = EVar <$> pIdent
 
     pEInt = lexeme $ EInt <$> L.decimal
 
     pEStr = lexeme $ EStr <$> stringLiteral
 
     pEChar = lexeme $ EChar <$> charLiteral
-
-    pECon = ECon <$> pUpperIdent
 
     pEIf = do
       symbol "if"
@@ -225,7 +216,7 @@ pTypeApps :: Parser Type
 pTypeApps = foldl1 TApp <$> some pTypeAtom
 
 pTypeAtom :: Parser Type
-pTypeAtom = choice [TVar <$> pLowerIdent, TCon <$> pUpperIdent, parens pType]
+pTypeAtom = choice [TVar <$> pIdent, parens pType]
 
 pScheme :: Parser Scheme
 pScheme = do
@@ -250,7 +241,7 @@ pScheme = do
         ( do
             c <- pUpperIdent
             x <- some pTypeAtom
-            pure (c, x)
+            pure $ InstanceSig c x
         )
         (symbol ",")
     symbol "}"

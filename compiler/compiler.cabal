@@ -6,7 +6,11 @@ common config
     ghc-options: -W
     default-language: GHC2021
     default-extensions:
+        DuplicateRecordFields,
         LambdaCase,
+        MultiWayIf,
+        OverloadedRecordDot,
+        PatternSynonyms,
     build-depends:
         base,
         mtl,
@@ -28,13 +32,16 @@ library
         LL.Term,
         LL.Codegen,
         Surface.Alpha,
-        Surface.Check,
+        Surface.Check.Ctxt,
+        Surface.Check.Monad,
+        Surface.Check.Rules,
         Surface.Parse,
         Surface.Syntax,
         UC.Name,
         UC.Free,
         UC.Term,
         UC.LambdaLift,
+        Util,
     build-depends:
         megaparsec,
         parser-combinators,
