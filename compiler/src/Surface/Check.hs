@@ -47,13 +47,15 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [ioPure, ioBind, printInt, printStr, printChar, eqInt, eqBool, remainder] [] [("Int", Star 1), ("Bool", Star 1), ("Char", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", mono $ TCon "Bool"), ("False", mono $ TCon "Bool")] [] []
+initCtxt = Ctxt [ioPure, ioBind, printInt, printStr, printChar, readRAM, writeRAM, eqInt, eqBool, remainder] [] [("Int", Star 1), ("Bool", Star 1), ("Char", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", mono $ TCon "Bool"), ("False", mono $ TCon "Bool")] [] []
   where
     ioPure = ("ioPure", Forall [("a", Star 1)] [] (TArr (TVar "a") (TApp (TCon "IO") (TVar "a"))))
     ioBind = ("ioBind", Forall [("a", Star 1), ("b", Star 1)] [] (TArr (TApp (TCon "IO") (TVar "a")) (TArr (TArr (TVar "a") (TApp (TCon "IO") (TVar "b"))) (TApp (TCon "IO") (TVar "b")))))
     printInt = ("printInt", Forall [] [] (TArr (TCon "Int") (TApp (TCon "IO") (TCon "Unit"))))
     printStr = ("printStr", Forall [] [] (TArr (TCon "String") (TApp (TCon "IO") (TCon "Unit"))))
     printChar = ("printChar", Forall [] [] (TArr (TCon "Char") (TApp (TCon "IO") (TCon "Unit"))))
+    readRAM = ("readRAM", Forall [] [] (TArr (TCon "Int") (TApp (TCon "IO") (TCon "Int"))))
+    writeRAM = ("writeRAM", Forall [] [] (TArr (TCon "Int") $ TArr (TCon "Int") $ TApp (TCon "IO") (TCon "Unit")))
     eqInt = ("eqInt", Forall [] [] (TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool"))))
     eqBool = ("eqBool", Forall [] [] (TArr (TCon "Bool") (TArr (TCon "Bool") (TCon "Bool"))))
     remainder = ("remainder", Forall [] [] (TArr (TCon "Int") (TArr (TCon "Int") (TCon "Int"))))
@@ -101,7 +103,7 @@ checkTop (TData n r x s tvars cs) = do
                 mapM_ (uncurry extendType) tvars
                 inferTypeStar a
               extendTypeCon x $ kind (Star i)
-              extendDataCon c $ Forall tvars [] $ TArr a (TCon x)
+              extendDataCon c $ Forall tvars [] $ TArr a $ foldl TApp (TCon x) $ map (TVar . fst) tvars
             [_] -> throwError "Newtypes constructors must only have a single argument"
             _ -> throwError "Newtypes can only have a single constructor"
         else
@@ -167,7 +169,7 @@ checkConstr tvars dataName i (Constr x as) = do
   forM_ as $ \a -> locally $ do
     mapM_ (uncurry extendType) tvars
     checkType a (Star i)
-  let a = foldr TArr (TCon dataName) as
+  let a = foldr TArr (foldl TApp (TCon dataName) $ map (TVar . fst) tvars) as
   let a' = Forall tvars [] a
   extendDataCon x a'
 
@@ -239,6 +241,8 @@ inferExpr = \case
   EBin BMul x y -> checkArith x y
   EBin BAnd x y -> checkLogic x y
   EBin BOr x y -> checkLogic x y
+  EBin BBitOr x y -> checkArith x y
+  EBin BShiftR x y -> checkArith x y
   EBin BEq x y -> do
     a <- meta
     hasClass "Eq" [a]

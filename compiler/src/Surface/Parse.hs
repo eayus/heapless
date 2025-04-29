@@ -125,7 +125,10 @@ pExpr = makeExprParser pApps ops
   where
     ops =
       [ [ InfixL (EBin BAnd <$ symbol "&&"),
-          InfixL (EBin BOr <$ symbol "||")
+          InfixL (EBin BOr <$ symbol "||"),
+          InfixL (EBin BBitOr <$ symbol "|")
+        ],
+        [ InfixL (EBin BShiftR <$ symbol ">>")
         ],
         [ InfixL (EBin BLTE <$ symbol "<="),
           InfixL (EBin BLT <$ symbol "<"),

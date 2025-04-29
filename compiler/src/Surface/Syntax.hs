@@ -13,6 +13,8 @@ data BinOp
   | BAnd
   | BOr
   | BEq
+  | BBitOr
+  | BShiftR
   deriving (Show)
 
 data Type
