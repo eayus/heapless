@@ -22,7 +22,14 @@ pProg :: Parser Prog
 pProg = many pTop
 
 pTop :: Parser Top
-pTop = pTLet <|> pTData <|> pTClass <|> pTInst
+pTop = pTLet <|> pTData <|> pTClass <|> pTInst <|> pInclude
+
+pInclude :: Parser Top
+pInclude = do
+  symbol "include"
+  s <- stringLiteral
+  symbol ";"
+  pure $ TInclude s
 
 pTClass :: Parser Top
 pTClass = do
@@ -296,7 +303,7 @@ charLiteral :: Parser Char
 charLiteral = char '\'' *> L.charLiteral <* char '\''
 
 reserved :: [String]
-reserved = ["let", "rec", "data", "\\", "Λ", "if", "then", "else", "type", "do", "fold"]
+reserved = ["let", "rec", "data", "\\", "Λ", "if", "then", "else", "type", "do", "fold", "include"]
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc

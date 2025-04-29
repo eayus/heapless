@@ -79,6 +79,7 @@ data Top
   | TData New Rec Ident Stage [(Ident, Kind)] [Constr]
   | TClass Ident Class
   | TInst Ident [Type] [(Ident, Expr)]
+  | TInclude FilePath
   deriving (Show)
 
 type Prog = [Top]

@@ -8,6 +8,7 @@ import Data.HashSet qualified as S
 import Data.List
 import Data.Maybe
 import Surface.Alpha
+import Surface.Parse
 import Surface.Syntax
 
 data Ctxt = Ctxt
@@ -31,16 +32,18 @@ data MCtxt = MCtxt
 -- TODO: Rather than running all definitions in TC, be more fine grained and make it clear the meta context does not
 -- persist between top-level definitions. (This has already lead to a bug once).
 
-type TC a = StateT Ctxt (StateT MCtxt (Except String)) a
+type TC a = StateT Ctxt (StateT MCtxt (ExceptT String IO)) a
 
-typecheck :: (MonadError String m) => Prog -> m ()
+typecheck :: (MonadIO m, MonadError String m) => Prog -> m ()
 typecheck p = runTC (checkProg p)
 
-runTC :: (MonadError String m) => TC () -> m ()
+runTC :: (MonadIO m, MonadError String m) => TC () -> m ()
 runTC m0 = do
   let m1 = evalStateT m0 initCtxt
   let m2 = runStateT m1 initMCtxt
-  (_, _) <- liftEither $ runExcept m2
+  let m3 = runExceptT m2
+  x <- liftIO m3
+  (_, _) <- liftEither x
   pure ()
 
 initCtxt :: Ctxt
@@ -67,6 +70,10 @@ checkProg :: Prog -> TC ()
 checkProg = mapM_ checkTop
 
 checkTop :: Top -> TC ()
+checkTop (TInclude fp) = do
+  liftIO $ readFile fp
+  prog <- lift $ lift $ parseFile fp
+  checkProg prog
 checkTop (TLet r x a t) = withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
   checkPolyLet r x a t
   solveAllConstraints
@@ -146,7 +153,9 @@ solveAllConstraints = do
   let unsolved = S.fromList mvars `S.difference` M.keysSet sub
   unless (null unsolved) $ throwError $ "Unsolved meta variables: " ++ show unsolved
   let kindCons = map (\(ctxt, a, k) -> (substCtxtMeta sub ctxt, substMeta sub a, k)) $ kindConstraints mctxt
-  forM_ kindCons $ \(ctxt, a, k) -> liftEither $ runExcept $ runStateT (evalStateT (checkType a k) ctxt) undefined
+  forM_ kindCons $ \(ctxt, a, k) -> do
+    x <- liftIO $ runExceptT $ runStateT (evalStateT (checkType a k) ctxt) undefined
+    liftEither x
   let classCons = map (\(ctxt, x, as) -> (substCtxtMeta sub ctxt, x, map (substMeta sub) as)) $ mClassConstraints mctxt
   forM_ classCons $ \(ctxt, x, as) -> unless ((x, as) `elem` instances ctxt) $ throwError $ "Required instance for " ++ x ++ " " ++ show as ++ "\nContext:\n" ++ show (instances ctxt)
   lift $ put initMCtxt
