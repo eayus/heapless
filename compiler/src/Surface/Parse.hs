@@ -70,10 +70,15 @@ pTData = do
   n <- pNew
   r <- pRec
   x <- pUpperIdent
+  xs <- many $ parens $ do
+    v <- pLowerIdent
+    symbol "::"
+    k <- pKind
+    pure (v, k)
   s <- pStage
   cs <- many pConstr
   symbol ";"
-  pure $ TData n r x s cs
+  pure $ TData n r x s xs cs
 
 pTLet :: Parser Top
 pTLet = do

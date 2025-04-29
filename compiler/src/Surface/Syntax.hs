@@ -76,7 +76,7 @@ data Class = Class
 
 data Top
   = TLet Rec Ident Scheme Expr
-  | TData New Rec Ident Stage [Constr]
+  | TData New Rec Ident Stage [(Ident, Kind)] [Constr]
   | TClass Ident Class
   | TInst Ident [Type] [(Ident, Expr)]
   deriving (Show)

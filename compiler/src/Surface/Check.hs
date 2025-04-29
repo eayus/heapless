@@ -14,7 +14,7 @@ data Ctxt = Ctxt
   { vars :: [(Ident, Scheme)],
     typeVars :: [(Ident, Kind)],
     typeCons :: [(Ident, Kind)],
-    dataCons :: [(Ident, Type)],
+    dataCons :: [(Ident, Scheme)],
     classDefs :: [(Ident, Class)],
     instances :: [(Ident, [Type])] -- Class name, types (multiple types because we have multiparam typeclasses)
   }
@@ -44,7 +44,7 @@ runTC m0 = do
   pure ()
 
 initCtxt :: Ctxt
-initCtxt = Ctxt [ioPure, ioBind, printInt, printStr, printChar, eqInt, eqBool, remainder] [] [("Int", Star 1), ("Bool", Star 1), ("Char", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", TCon "Bool"), ("False", TCon "Bool")] [] []
+initCtxt = Ctxt [ioPure, ioBind, printInt, printStr, printChar, eqInt, eqBool, remainder] [] [("Int", Star 1), ("Bool", Star 1), ("Char", Star 1), ("String", Star 1), ("IO", KFunc (Star 1) (Star 2))] [("True", mono $ TCon "Bool"), ("False", mono $ TCon "Bool")] [] []
   where
     ioPure = ("ioPure", Forall [("a", Star 1)] [] (TArr (TVar "a") (TApp (TCon "IO") (TVar "a"))))
     ioBind = ("ioBind", Forall [("a", Star 1), ("b", Star 1)] [] (TArr (TApp (TCon "IO") (TVar "a")) (TArr (TArr (TVar "a") (TApp (TCon "IO") (TVar "b"))) (TApp (TCon "IO") (TVar "b")))))
@@ -70,17 +70,19 @@ checkTop :: Top -> TC ()
 checkTop (TLet r x a t) = withError (("When checking the top level definiton " ++ x ++ "\n") ++) $ do
   checkPolyLet r x a t
   solveAllConstraints
-checkTop (TData n r x s cs) = do
+checkTop (TData n r x s tvars cs) = do
   ctxt <- get
   lift $ put initMCtxt
   when (x `elem` map fst (typeCons ctxt)) $ throwError $ "Data type " ++ x ++ " is already defined"
   case s of
     RT -> do
+      unless (null tvars) $ throwError "Runtime data types cannot be polymorphic" -- This is not quite true, as long as polymorphic recursion is disallowed.
       when (n == New) $ throwError "Newtypes must be removed at comptime (use ':=')"
       when (r == Rec) $ throwError "Runtime data types cannot be recursive"
-      mapM_ (checkConstr x 1) cs
+      mapM_ (checkConstr [] x 1) cs
       extendTypeCon x $ Star 1
-    CT ->
+    CT -> do
+      let kind res = foldr (KFunc . snd) res tvars
       if n == New
         then do
           when (r == Rec) $ throwError "Newtypes cannot be recursive"
@@ -88,19 +90,21 @@ checkTop (TData n r x s cs) = do
             [Constr c [a]] -> do
               ctxt <- get
               when (c `elem` map fst (dataCons ctxt)) $ throwError $ "Data constructor " ++ c ++ " is already defined"
-              i <- inferTypeStar a
-              extendTypeCon x (Star i)
-              extendDataCon c $ TArr a (TCon x)
+              i <- locally $ do
+                mapM_ (uncurry extendType) tvars
+                inferTypeStar a
+              extendTypeCon x $ kind (Star i)
+              extendDataCon c $ Forall tvars [] $ TArr a (TCon x)
             [_] -> throwError "Newtypes constructors must only have a single argument"
             _ -> throwError "Newtypes can only have a single constructor"
         else
           if r == Rec
             then do
-              extendTypeCon x $ Star 3
-              mapM_ (checkConstr x 3) cs
+              extendTypeCon x $ kind $ Star 3
+              mapM_ (checkConstr tvars x 3) cs
             else do
-              mapM_ (checkConstr x 3) cs
-              extendTypeCon x $ Star 3
+              mapM_ (checkConstr tvars x 3) cs
+              extendTypeCon x $ kind $ Star 3
 checkTop (TClass x c@(Class tvars xs)) = do
   ctxt <- get
   when (isJust $ lookup x $ classDefs ctxt) $ throwError $ "Typeclass " ++ x ++ " is already defined"
@@ -147,42 +151,48 @@ solveAllConstraints = do
   forM_ classCons $ \(ctxt, x, as) -> unless ((x, as) `elem` instances ctxt) $ throwError $ "Required instance for " ++ x ++ " " ++ show as ++ "\nContext:\n" ++ show (instances ctxt)
   lift $ put initMCtxt
 
-checkConstr :: Ident -> Int -> Constr -> TC ()
-checkConstr dataName i (Constr x as) = do
+checkConstr :: [(Ident, Kind)] -> Ident -> Int -> Constr -> TC ()
+checkConstr tvars dataName i (Constr x as) = do
   ctxt <- get
   when (x `elem` map fst (dataCons ctxt)) $ throwError $ "Data constructor " ++ x ++ " is already defined"
-  forM_ as $ \a -> checkType a (Star i)
+  forM_ as $ \a -> locally $ do
+    mapM_ (uncurry extendType) tvars
+    checkType a (Star i)
   let a = foldr TArr (TCon dataName) as
-  extendDataCon x a
+  let a' = Forall tvars [] a
+  extendDataCon x a'
 
 checkExpr :: Expr -> Type -> TC ()
 checkExpr t a = do
   b <- inferExpr t
   unify a b
 
+instantiate :: Scheme -> TC Type
+instantiate (Forall xs cs a) = do
+  sub <-
+    M.fromList
+      <$> mapM
+        ( \(y, k) -> do
+            m <- meta
+            hasKind m k
+            pure (y, m)
+        )
+        xs
+  let cs' = map (second (map (substVar sub))) cs
+  mapM_ (uncurry hasClass) cs'
+  pure $ substVar sub a
+
 inferExpr :: Expr -> TC Type
 inferExpr = \case
   EVar x -> do
     ctxt <- get
     case lookup x $ vars ctxt of
-      Just (Forall xs cs a) -> do
-        sub <-
-          M.fromList
-            <$> mapM
-              ( \(y, k) -> do
-                  m <- meta
-                  hasKind m k
-                  pure (y, m)
-              )
-              xs
-        let cs' = map (second (map (substVar sub))) cs
-        mapM_ (uncurry hasClass) cs'
-        pure $ substVar sub a
+      Just a -> instantiate a
       Nothing -> throwError $ "Undefined variable " ++ x
   ECon x -> do
     ctxt <- get
     case lookup x $ dataCons ctxt of
-      Just a -> pure a
+      Just a -> instantiate a
       Nothing -> throwError $ "Undefined data constructor " ++ x
   ELam xs t -> locally $ do
     as <- mapM (\x -> do a <- meta; extend x $ Forall [] [] a; pure a) xs
@@ -350,7 +360,7 @@ extendType x a = do
   when (isJust $ lookup x $ typeVars ctxt) $ throwError $ "Shadowed type variable " ++ x
   put $ ctxt {typeVars = (x, a) : typeVars ctxt}
 
-extendDataCon :: Ident -> Type -> TC ()
+extendDataCon :: Ident -> Scheme -> TC ()
 extendDataCon x a = modify $ \ctxt -> ctxt {dataCons = (x, a) : dataCons ctxt}
 
 extendTypeCon :: Ident -> Kind -> TC ()
@@ -424,6 +434,9 @@ setMeta x a
 
 (@@) :: Subst -> Subst -> Subst
 s0 @@ s1 = M.map (substMeta s0) s1 `M.union` s0
+
+mono :: Type -> Scheme
+mono = Forall [] []
 
 -- These should be in base now?
 tryError :: (MonadError e m) => m a -> m (Either e a)

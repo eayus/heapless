@@ -4,6 +4,7 @@ TODOS:
 - Sub-Typeclass constraints (e.g. Functor f => Applicative f)
 - Make fold operator actually a fold.
 - Disallow non-strictly positive data.
+    - And polymorphic data using polymorphic recursion!
 - Polymorphic data
 
 ---------------------------
