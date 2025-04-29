@@ -101,7 +101,7 @@ pTLet = do
 
 pRec :: Parser Rec
 pRec =
-  optional (symbol "rec") >>= \case
+  optional (keyword "rec") >>= \case
     Nothing -> pure NoRec
     Just () -> pure Rec
 
@@ -273,7 +273,7 @@ pKindAtom = choice [Star 1 <$ symbol "*1", Star 2 <$ symbol "*2", Star 3 <$ symb
 
 pLowerIdent :: Parser Ident
 pLowerIdent = try $ lexeme $ do
-  c <- lowerChar
+  c <- lowerChar <|> char '_'
   cs <- many alphaNumChar
   let s = c : cs
   when (s `elem` reserved) $ fail $ "Reserved word " ++ show s ++ " used as identifier"
@@ -298,6 +298,11 @@ parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
 -- Utilities for lexing.
+
+keyword :: String -> Parser ()
+keyword s = try $ lexeme $ do
+  string s
+  notFollowedBy letterChar
 
 stringLiteral :: Parser String
 stringLiteral = char '\"' *> manyTill L.charLiteral (char '\"')

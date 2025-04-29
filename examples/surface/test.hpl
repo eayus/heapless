@@ -193,6 +193,9 @@ class Functor (f :: *1 -> *3) {
 let void : [f :: *1 -> *3, a :: *1]. {Functor f} => f a -> f Unit =
     map (const It);
 
+
+let recv : [a :: *3]. a -> a = \x => x;
+
 /*
 data new Reader (r :: *1) (a :: *2) :=
   | Reader (r -> a);

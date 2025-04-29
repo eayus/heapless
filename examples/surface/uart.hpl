@@ -78,6 +78,5 @@ let take : [m :: *1 -> *2]. {Monad m, MonadMemory m} => m Int =
 // Annoyances:
 // Special syntax for Unit
 // Giving kinds to type variables for non recursive functions (just pick most general kind?)
-// Can't use underscore for binder name
+//      On this note, I am swaying towards adding "=" and ":=" to function definitions.
 // Do notation don't bind with "<-" if returning a unit
-// A name like "recv" is treated by the parser as "rec v". 
