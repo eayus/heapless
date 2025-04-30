@@ -46,10 +46,9 @@ checkRTDataDef :: DataDef -> TC ()
 checkRTDataDef d = do
   unless (d.recursive == NoRec) $
     throwError "Runtime data types cannot be recursive"
-  unless (null d.typeVars) $
-    throwError "Runtime data types cannot be polymorphic"
-  mapM_ (eatRTConstructor d.name) d.constructors
-  addTypeVar' d.name (Star 1)
+  mapM_ (eatRTConstructor d.name d.typeVars) d.constructors
+  let dataKind = foldr (KFunc . snd) (Star 1) d.typeVars
+  addTypeVar' d.name dataKind
 
 checkCTDataDef :: DataDef -> TC ()
 checkCTDataDef d
@@ -72,9 +71,11 @@ checkNewtype dataName typeVars conName innerTy = do
   let dataKind = foldr (KFunc . snd) (Star i) typeVars
   addTypeVar' dataName dataKind
 
-eatRTConstructor :: Ident -> Constr -> TC ()
-eatRTConstructor dataName (Constr conName as) = do
-  mapM_ (`checkType` Star 1) as
+eatRTConstructor :: Ident -> [(Ident, Kind)] -> Constr -> TC ()
+eatRTConstructor dataName typeVars (Constr conName as) = do
+  locally' $ do
+    mapM_ (uncurry addTypeVar') typeVars
+    mapM_ (`checkType` Star 1) as
   let conTy = foldr TArr (TVar dataName) as
   addVar' conName (Mono conTy)
 
