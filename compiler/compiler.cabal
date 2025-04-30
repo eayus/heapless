@@ -6,8 +6,10 @@ common config
     ghc-options: -W
     default-language: GHC2021
     default-extensions:
+        DataKinds,
         DuplicateRecordFields,
         LambdaCase,
+        GADTs,
         MultiWayIf,
         OverloadedRecordDot,
         PatternSynonyms,

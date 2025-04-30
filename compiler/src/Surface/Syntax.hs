@@ -1,5 +1,169 @@
 module Surface.Syntax where
 
+-- Terms are indexed by whether they are either:
+--   a) Syntactic terms, produced by the parser.
+--   b) Typed terms which contain meta variables, produced by the typechecker.
+--   b) Fully typed terms, after meta variables have been resolved.
+data Ano
+  = Syn
+  | Met
+  | Typ
+
+-- Meta Variables
+
+data Meta :: Ano -> * where
+  Meta :: Ident -> Meta Met
+
+deriving instance Eq (Meta ano)
+
+deriving instance Show (Meta ano)
+
+-- Kinds
+
+data Kind
+  = Star Int
+  | KFunc Kind Kind
+  deriving (Eq, Show)
+
+-- Types
+
+data Type (ano :: Ano)
+  = TVar Ident
+  | TArr (Type ano) (Type ano)
+  | TApp (Type ano) (Type ano)
+  | TMeta (Meta ano)
+  deriving (Eq, Show)
+
+data Scheme ano = Forall
+  { typeVars :: [(Ident, Kind)],
+    instances :: [InstanceSig ano], -- Class name, type vars
+    schBody :: Type ano
+  }
+  deriving (Show)
+
+data Sig ano = Sig {var :: Ident, scheme :: Scheme ano}
+  deriving (Show)
+
+-- Patterns and Clauses
+
+data Pat = Pat
+  { con :: Ident,
+    args :: [Ident]
+  }
+  deriving (Show)
+
+data Clause ano = Clause
+  { pat :: Pat,
+    rhs :: Expr ano
+  }
+  deriving (Show)
+
+data PatternSig = PatternSig
+  { conName :: Ident,
+    params :: [Type Met],
+    retType :: Ident
+  }
+
+-- Expressions
+
+data Expr ano
+  = EVar Ident
+  | ELam [Ident] (Expr ano)
+  | EApp (Expr ano) (Expr ano)
+  | ELet Rec Ident (Maybe (Scheme ano)) (Expr ano) (Expr ano)
+  | EInt Integer
+  | EStr String
+  | EChar Char
+  | EIf (Expr ano) (Expr ano) (Expr ano)
+  | EBin BinOp (Expr ano) (Expr ano)
+  | EDo [(Ident, Expr ano)] (Expr ano)
+  | EFold (Expr ano) [(Pat, Expr ano)]
+  | ECase (Expr ano) [Clause ano]
+  deriving (Show)
+
+-- Typeclasses
+
+data InstanceSig ano = InstanceSig
+  { className :: Ident,
+    args :: [Type ano]
+  }
+  deriving (Eq, Show)
+
+-- Rename to ClassDef?
+data Class ano = Class
+  { tvars :: [(Ident, Kind)],
+    sigs :: [Sig ano]
+  }
+  deriving (Show)
+
+data Instance ano = Instance
+  { sig :: InstanceSig ano,
+    defs :: [(Ident, Expr ano)]
+  }
+  deriving (Show)
+
+-- Data Types
+
+data DataDef ano = DataDef
+  { name :: Ident,
+    recursive :: Rec,
+    stage :: Stage,
+    typeVars :: [(Ident, Kind)],
+    constructors :: [Constr ano]
+  }
+  deriving (Show)
+
+data Constr ano = Constr Ident [Type ano]
+  deriving (Show)
+
+data Rec = Rec | NoRec
+  deriving (Eq, Show)
+
+data Stage = RT | CT
+  deriving (Show)
+
+-- Programs
+
+data Top ano
+  = TLet Rec Ident (Scheme ano) (Expr ano)
+  | TData (DataDef ano)
+  | TClass Ident (Class ano)
+  | TInst (Instance ano)
+  | TInclude FilePath
+  deriving (Show)
+
+type Prog ano = [Top ano]
+
+-- Contexts
+
+data Ctxt = Ctxt
+  { vars :: [(Ident, Scheme Met)],
+    typeVars :: [(Ident, Kind)],
+    classDefs :: [(Ident, Class Met)],
+    instances :: [InstanceSig Met],
+    patterns :: [PatternSig]
+  }
+
+-- Constraints
+
+data CTypeEquality = CTypeEquality
+  { lhs :: Type Met,
+    rhs :: Type Met
+  }
+
+data CTypeKind = CTypeKind
+  { ctxt :: Ctxt,
+    ty :: Type Met,
+    kind :: Kind
+  }
+
+data CInstance = CInstance
+  { ctxt :: Ctxt,
+    sig :: InstanceSig Met
+  }
+
+-- Utilities
+
 type Ident = String
 
 data BinOp
@@ -17,145 +181,17 @@ data BinOp
   | BShiftR
   deriving (Show)
 
-data Type
-  = TVar Ident -- Type variable or type constructor
-  | TArr Type Type -- Arrow type
-  | TApp Type Type -- Type-level application (e.g. "m a")
-  | TMeta Ident -- Meta variable, only used during type checking (user cannot create this)
-  deriving (Eq, Show)
+-- pattern TInt :: Type
+-- pattern TInt = TVar "Int"
 
-data Sig = Sig {var :: Ident, scheme :: Scheme}
-  deriving (Show)
+-- pattern TStr :: Type
+-- pattern TStr = TVar "Str"
 
-pattern TInt :: Type
-pattern TInt = TVar "Int"
+-- pattern TChar :: Type
+-- pattern TChar = TVar "Char"
 
-pattern TStr :: Type
-pattern TStr = TVar "Str"
+-- pattern TBool :: Type
+-- pattern TBool = TVar "Bool"
 
-pattern TChar :: Type
-pattern TChar = TVar "Char"
-
-pattern TBool :: Type
-pattern TBool = TVar "Bool"
-
-data Kind
-  = Star Int
-  | KFunc Kind Kind
-  deriving (Eq, Show)
-
-data InstanceSig = InstanceSig
-  { className :: Ident,
-    args :: [Type]
-  }
-  deriving (Eq, Show)
-
-data Scheme = Forall
-  { typeVars :: [(Ident, Kind)],
-    instances :: [InstanceSig], -- Class name, type vars
-    schBody :: Type
-  }
-  deriving (Show)
-
-pattern Mono :: Type -> Scheme
-pattern Mono a = Forall [] [] a
-
-data Rec = Rec | NoRec
-  deriving (Eq, Show)
-
-data Pat = Pat
-  { con :: Ident,
-    args :: [Ident]
-  }
-  deriving (Show)
-
-data Clause = Clause
-  { pat :: Pat,
-    rhs :: Expr
-  }
-  deriving (Show)
-
-data Expr
-  = EVar Ident
-  | ELam [Ident] Expr
-  | EApp Expr Expr
-  | ELet Rec Ident (Maybe Scheme) Expr Expr
-  | EInt Integer
-  | EStr String
-  | EChar Char
-  | EIf Expr Expr Expr
-  | EBin BinOp Expr Expr
-  | EDo [(Ident, Expr)] Expr
-  | EFold Expr [(Pat, Expr)]
-  | ECase Expr [Clause]
-  deriving (Show)
-
-data Constr = Constr Ident [Type]
-  deriving (Show)
-
-data Stage = RT | CT
-  deriving (Show)
-
--- Rename to ClassDef?
-data Class = Class
-  { tvars :: [(Ident, Kind)],
-    sigs :: [Sig]
-  }
-  deriving (Show)
-
-data Instance = Instance
-  { sig :: InstanceSig,
-    defs :: [(Ident, Expr)]
-  }
-  deriving (Show)
-
-data Top
-  = TLet Rec Ident Scheme Expr
-  | TData DataDef
-  | TClass Ident Class
-  | TInst Instance
-  | TInclude FilePath
-  deriving (Show)
-
-data DataDef = DataDef
-  { name :: Ident,
-    recursive :: Rec,
-    stage :: Stage,
-    typeVars :: [(Ident, Kind)],
-    constructors :: [Constr]
-  }
-  deriving (Show)
-
-type Prog = [Top]
-
-data PatternSig = PatternSig {
-  conName :: Ident,
-  params :: [Type],
-  retType :: Ident
-}
-
--- Constraints
-
-data Ctxt = Ctxt
-  { vars :: [(Ident, Scheme)],
-    typeVars :: [(Ident, Kind)],
-    classDefs :: [(Ident, Class)],
-    instances :: [InstanceSig],
-    patterns :: [PatternSig]
-  }
-
-data CTypeEquality = CTypeEquality
-  { lhs :: Type,
-    rhs :: Type
-  }
-
-data CTypeKind = CTypeKind
-  { ctxt :: Ctxt,
-    ty :: Type,
-    kind :: Kind
-  }
-
-data CInstance = CInstance
-  { ctxt :: Ctxt,
-    sig :: InstanceSig
-  }
+-- pattern Mono :: Type -> Scheme
+-- pattern Mono a = Forall [] [] a

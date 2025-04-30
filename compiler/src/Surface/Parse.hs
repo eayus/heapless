@@ -11,27 +11,27 @@ import Text.Megaparsec.Char.Lexer qualified as L
 
 type Parser = Parsec Void String
 
-parseFile :: FilePath -> ExceptT String IO Prog
+parseFile :: FilePath -> ExceptT String IO (Prog Syn)
 parseFile filepath = do
   contents <- lift $ readFile filepath
   case runParser (sc *> pProg <* eof) filepath contents of
     Left err -> throwError $ errorBundlePretty err
     Right x -> pure x
 
-pProg :: Parser Prog
+pProg :: Parser (Prog Syn)
 pProg = many pTop
 
-pTop :: Parser Top
+pTop :: Parser (Top Syn)
 pTop = pTLet <|> pTData <|> pTClass <|> pTInst <|> pInclude
 
-pInclude :: Parser Top
+pInclude :: Parser (Top Syn)
 pInclude = do
   symbol "include"
   s <- stringLiteral
   symbol ";"
   pure $ TInclude s
 
-pTClass :: Parser Top
+pTClass :: Parser (Top Syn)
 pTClass = do
   symbol "class"
   x <- pUpperIdent
@@ -47,7 +47,7 @@ pTClass = do
   symbol "}"
   pure $ TClass x (Class ts xs)
 
-pTInst :: Parser Top
+pTInst :: Parser (Top Syn)
 pTInst = do
   symbol "inst"
   x <- pUpperIdent
@@ -57,21 +57,21 @@ pTInst = do
   symbol "}"
   pure $ TInst $ Instance (InstanceSig x y) xs
 
-pInstDef :: Parser (Ident, Expr)
+pInstDef :: Parser (Ident, Expr Syn)
 pInstDef = do
   x <- pLowerIdent
   symbol "="
   t <- pExpr
   pure (x, t)
 
-pSig :: Parser (Ident, Scheme)
+pSig :: Parser (Ident, Scheme Syn)
 pSig = do
   x <- pLowerIdent
   symbol ":"
   a <- pScheme
   pure (x, a)
 
-pTData :: Parser Top
+pTData :: Parser (Top Syn)
 pTData = do
   symbol "data"
   r <- pRec
@@ -86,7 +86,7 @@ pTData = do
   symbol ";"
   pure $ TData $ DataDef x r s xs cs
 
-pTLet :: Parser Top
+pTLet :: Parser (Top Syn)
 pTLet = do
   symbol "let"
   r <- pRec
@@ -121,7 +121,7 @@ pPat = do
   xs <- many pLowerIdent
   pure $ Pat c xs
 
-pExpr :: Parser Expr
+pExpr :: Parser (Expr Syn)
 pExpr = makeExprParser pApps ops
   where
     ops =
@@ -144,12 +144,12 @@ pExpr = makeExprParser pApps ops
         ]
       ]
 
-pApps :: Parser Expr
+pApps :: Parser (Expr Syn)
 pApps = do
   xs <- some pExprAtom
   pure $ foldl1 EApp xs
 
-pExprAtom :: Parser Expr
+pExprAtom :: Parser (Expr Syn)
 pExprAtom = choice [pECase, pEDo, pEFold, pEStr, pEChar, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
   where
     pELam = do
@@ -223,24 +223,24 @@ pExprAtom = choice [pECase, pEDo, pEFold, pEStr, pEChar, pEIf, pELam, pELet, pEV
       symbol "}"
       pure $ ECase t xs
 
-pClause :: Parser Clause
+pClause :: Parser (Clause Syn)
 pClause = do
   p <- pPat
   symbol "=>"
   Clause p <$> pExpr
 
-pType :: Parser Type
+pType :: Parser (Type Syn)
 pType = makeExprParser pTypeApps ops
   where
     ops = [[InfixR (TArr <$ symbol "->")]]
 
-pTypeApps :: Parser Type
+pTypeApps :: Parser (Type Syn)
 pTypeApps = foldl1 TApp <$> some pTypeAtom
 
-pTypeAtom :: Parser Type
+pTypeAtom :: Parser (Type Syn)
 pTypeAtom = choice [TVar <$> pIdent, parens pType]
 
-pScheme :: Parser Scheme
+pScheme :: Parser (Scheme Syn)
 pScheme = do
   tvars <- optional $ do
     xs <- pTypeVars
@@ -276,7 +276,7 @@ pTypeVars = do
   symbol "]"
   pure xs
 
-pConstr :: Parser Constr
+pConstr :: Parser (Constr Syn)
 pConstr = do
   symbol "|"
   x <- pUpperIdent
