@@ -90,13 +90,21 @@ pTLet :: Parser Top
 pTLet = do
   symbol "let"
   r <- pRec
-  x <- pIdent
+  x <- pLowerIdent
+  tvars <- fromMaybe [] <$> optional pTypeVars
+  params <- many $ do
+    symbol "("
+    name <- pLowerIdent
+    symbol ":"
+    ty <- pType
+    symbol ")"
+    pure (name, ty)
   symbol ":"
-  a <- pScheme
+  ret <- pType
   symbol "="
   t <- pExpr
   symbol ";"
-  pure $ TLet r x a t
+  pure $ TLet r x (Forall tvars [] $ foldr (TArr . snd) ret params) $ ELam (map fst params) t
 
 pRec :: Parser Rec
 pRec =
@@ -221,17 +229,7 @@ pTypeAtom = choice [TVar <$> pIdent, parens pType]
 pScheme :: Parser Scheme
 pScheme = do
   tvars <- optional $ do
-    symbol "["
-    xs <-
-      sepEndBy1
-        ( do
-            a <- pLowerIdent
-            symbol "::"
-            k <- pKind
-            pure (a, k)
-        )
-        (symbol ",")
-    symbol "]"
+    xs <- pTypeVars
     symbol "."
     pure xs
   clCons <- optional $ do
@@ -248,6 +246,21 @@ pScheme = do
     symbol "=>"
     pure xs
   Forall (fromMaybe [] tvars) (fromMaybe [] clCons) <$> pType
+
+pTypeVars :: Parser [(Ident, Kind)]
+pTypeVars = do
+  symbol "["
+  xs <-
+    sepEndBy1
+      ( do
+          a <- pLowerIdent
+          symbol "::"
+          k <- pKind
+          pure (a, k)
+      )
+      (symbol ",")
+  symbol "]"
+  pure xs
 
 pConstr :: Parser Constr
 pConstr = do

@@ -1,5 +1,12 @@
-data Id (a :: *2) :=
-  | Id a;
+data Maybe (a :: *1) =
+  | Nothing
+  | Just a;
 
+let fromMaybe [a :: *1] (m : Maybe a) (def : a) : a =
+  def;
 
-let rec foo : Int -> Id (Int -> Int) = foo;
+/*case m {
+  Nothing => def;
+  Just x => x;
+};
+*/
