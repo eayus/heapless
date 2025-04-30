@@ -150,7 +150,7 @@ pApps = do
   pure $ foldl1 EApp xs
 
 pExprAtom :: Parser Expr
-pExprAtom = choice [pEDo, pEFold, pEStr, pEChar, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
+pExprAtom = choice [pECase, pEDo, pEFold, pEStr, pEChar, pEIf, pELam, pELet, pEVar, pEInt, parens pExpr]
   where
     pELam = do
       symbol "\\"
@@ -214,6 +214,20 @@ pExprAtom = choice [pEDo, pEFold, pEStr, pEChar, pEIf, pELam, pELet, pEVar, pEIn
           (symbol ";")
       symbol "}"
       pure $ EFold t xs
+
+    pECase = do
+      symbol "case"
+      t <- pExpr
+      symbol "{"
+      xs <- sepEndBy1 pClause (symbol ";")
+      symbol "}"
+      pure $ ECase t xs
+
+pClause :: Parser Clause
+pClause = do
+  p <- pPat
+  symbol "=>"
+  Clause p <$> pExpr
 
 pType :: Parser Type
 pType = makeExprParser pTypeApps ops

@@ -37,7 +37,7 @@ consAddInstance c cons = cons {instances = c : cons.instances}
 -- Initialisation
 
 initCtxt :: Ctxt
-initCtxt = Ctxt initVars initTypes [] []
+initCtxt = Ctxt initVars initTypes [] [] []
   where
     initVars :: [(Ident, Scheme)]
     initVars = [ioPure, ioBind, printInt, printStr, printChar, readRAM, writeRAM, eqInt, eqBool, remainder]

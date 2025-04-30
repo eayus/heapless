@@ -13,6 +13,10 @@ import Surface.Parse
 import Surface.Syntax
 import Util
 
+-- TOODS:
+--  Finish case implementation by making data types add their patterns to the context. Polymorphic patterns
+--  must be handled too, which will require changes to the context and pattern checking.
+
 -- Programs and Top Level
 
 typecheckFile :: FilePath -> C ()
@@ -178,6 +182,12 @@ inferExpr = \case
       checkExpr t (TApp m ret)
       pure (TApp m ret)
   EFold {} -> undefined
+  ECase scrut clauses -> do
+    a <- inferExpr scrut
+    bs <- mapM (inferClause a) clauses
+    ret <- meta
+    mapM_ (unify ret) bs
+    pure ret
 
 checkExpr :: Expr -> Type -> MTC ()
 checkExpr t a = do
@@ -209,6 +219,21 @@ inferLogic t u = do
   checkExpr t TBool
   checkExpr u TBool
   pure TBool
+
+inferClause :: Type -> Clause -> MTC Type
+inferClause scrutTy (Clause pat t) = locally $ do
+  eatPat scrutTy pat
+  inferExpr t
+
+eatPat :: Type -> Pat -> MTC ()
+eatPat scrutTy (Pat con xs) = do
+  ctxt <- getCtxt
+  sig <- case find (\p -> p.conName == con) ctxt.patterns of
+    Just p -> pure p
+    Nothing -> throwError $ "Invalid pattern constructor " ++ show con
+  unless (length xs == length sig.params) $ throwError "Pattern has wrong number of arguments"
+  unless (scrutTy == TVar sig.retType) $ throwError "Pattern returns the wrong type"
+  mapM_ (uncurry addMonoVar) (zip xs sig.params)
 
 checkPolyLet :: Rec -> Ident -> Scheme -> Expr -> MTC ()
 checkPolyLet r x sch@(Forall xs cs a) t = do

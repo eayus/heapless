@@ -69,6 +69,12 @@ data Pat = Pat
   }
   deriving (Show)
 
+data Clause = Clause
+  { pat :: Pat,
+    rhs :: Expr
+  }
+  deriving (Show)
+
 data Expr
   = EVar Ident
   | ELam [Ident] Expr
@@ -81,6 +87,7 @@ data Expr
   | EBin BinOp Expr Expr
   | EDo [(Ident, Expr)] Expr
   | EFold Expr [(Pat, Expr)]
+  | ECase Expr [Clause]
   deriving (Show)
 
 data Constr = Constr Ident [Type]
@@ -121,13 +128,20 @@ data DataDef = DataDef
 
 type Prog = [Top]
 
+data PatternSig = PatternSig {
+  conName :: Ident,
+  params :: [Type],
+  retType :: Ident
+}
+
 -- Constraints
 
 data Ctxt = Ctxt
   { vars :: [(Ident, Scheme)],
     typeVars :: [(Ident, Kind)],
     classDefs :: [(Ident, Class)],
-    instances :: [InstanceSig]
+    instances :: [InstanceSig],
+    patterns :: [PatternSig]
   }
 
 data CTypeEquality = CTypeEquality
