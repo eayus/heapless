@@ -1,5 +1,6 @@
 module Surface.Check.Rules (typecheckFile) where
 
+import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Data.HashMap.Strict qualified as M
@@ -11,7 +12,6 @@ import Surface.Check.Ctxt
 import Surface.Check.Monad
 import Surface.Parse
 import Surface.Syntax
-import Util
 
 -- TOODS:
 --  Finish case implementation by making data types add their patterns to the context. Polymorphic patterns

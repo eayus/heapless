@@ -1,7 +1,9 @@
 module Surface.Parse where
 
+import Control.Monad
 import Control.Monad.Combinators.Expr
 import Control.Monad.Except
+import Control.Monad.Trans.Class
 import Data.Maybe
 import Data.Void (Void)
 import Surface.Syntax

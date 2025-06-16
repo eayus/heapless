@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Monad.Except
+import Control.Monad.Trans.Class
 import Core.Check
 import Core.Norm.Reify
 import Core.Parse
