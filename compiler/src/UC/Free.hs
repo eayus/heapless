@@ -1,6 +1,5 @@
 module UC.Free where
 
-import Control.Applicative
 import Control.Monad.Reader
 import Data.Foldable
 import Data.HashMap.Strict qualified as M
