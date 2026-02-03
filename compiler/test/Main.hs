@@ -36,10 +36,10 @@ testCorrectFile fp = TestCase $ do
       let uc = ucNf pe
       let uc' = nameMain uc
       let ll = llMain uc'
-      -- Printing the value is an easy way to force its evaluation.
-      -- This is necessary because evaluation could technically use
-      -- 'undefined', and we want the test suite to check for that.
-      putStrLn $ show ll
+      -- Writing the value to a file is an easy way to force its evaluation.
+      -- This is necessary because evaluation could technically use 'undefined',
+      -- and we want the test suite to check for that.
+      writeFile "/dev/null" $ show ll
 
 testIncorrectFile :: FilePath -> Test
 testIncorrectFile fp = TestCase $ do
