@@ -1,6 +1,6 @@
 λ w0.
 
-    let compose : ∀ A :: Type3. ∀ B :: Type3. ∀ C :: Type3. (B -> C) -> (A -> B) -> (A -> C) =
+    let compose : ∀ A :: Type. ∀ B :: Type. ∀ C :: Type. (B -> C) -> (A -> B) -> (A -> C) =
         Λ A. Λ B. Λ C.
             λf. λg. λx.
                 f (g x);

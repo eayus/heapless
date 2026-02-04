@@ -11,11 +11,8 @@ data Mult
   deriving (Eq, Show)
 
 -- Kinds of types.
--- KStar 1: Base types and products of base types.
--- KStar 2: Curried first-order functions.
--- KStar 3: Everything else (including higher-order/polymorphic functions).
 data Kind
-  = KStar Int
+  = KStar
   | KFunc Kind Kind
   deriving (Eq, Show)
 

@@ -2,10 +2,10 @@
 
     // type IO a = World -o (1 World, a)
 
-    let pure : ∀ A :: Type1. A -> World -o (1 World, A) =
+    let pure : ∀ A :: Type. A -> World -o (1 World, A) =
         Λ A. λx. λw. (w, x);
 
-    let bind : ∀ A :: Type1. ∀ B :: Type1. (World -o (1 World, A)) -> (A -> World -o (1 World, B)) -> (World -o (1 World, B)) =
+    let bind : ∀ A :: Type. ∀ B :: Type. (World -o (1 World, A)) -> (A -> World -o (1 World, B)) -> (World -o (1 World, B)) =
         Λ A. Λ B. λx. λf. λw2.
             let 1 (w1, a) = x w2;
             f a w1;

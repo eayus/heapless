@@ -1,8 +1,8 @@
 λ w.
 
-    type Functor :: (Type3 -> Type3) -> Type3 = λ F. ∀ A :: Type3. ∀ B :: Type3. (A -> B) -> F A -> F B;
+    type Functor :: (Type -> Type) -> Type = λ F. ∀ A :: Type. ∀ B :: Type. (A -> B) -> F A -> F B;
 
-    let void : ∀ F :: Type3 -> Type3. ∀ A :: Type3. Functor F -> F A -> F Unit =
+    let void : ∀ F :: Type -> Type. ∀ A :: Type. Functor F -> F A -> F Unit =
         Λ F. Λ A. λ fmap. λ x. fmap @A @Unit (λ v. unit) x;
 
     w

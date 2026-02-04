@@ -1,15 +1,15 @@
 λ w0.
 
-    type Monad :: (Type1 -> Type2) -> Type3 = λ M. (
+    type Monad :: (Type -> Type) -> Type = λ M. (
         // pure
-        ∀ A :: Type1. A -> M A,
+        ∀ A :: Type. A -> M A,
 
         // bind
-        ∀ A :: Type1. ∀ B :: Type1. M A -> (A -> M B) -> M B
+        ∀ A :: Type. ∀ B :: Type. M A -> (A -> M B) -> M B
     );
 
     let replicateM :
-        ∀ M :: Type1 -> Type2. ∀ A :: Type1.
+        ∀ M :: Type -> Type. ∀ A :: Type.
         Monad M -> Int -> M A -> M Unit =
 
         Λ M. Λ A.
@@ -21,12 +21,12 @@
                     else bind @A @Unit f (λ a. go (m - 1));
             go n;
 
-    type IO :: Type1 -> Type2 = λ A. World -o (1 World, A);
+    type IO :: Type -> Type = λ A. World -o (1 World, A);
 
-    let pure : ∀ A :: Type1. A -> IO A =
+    let pure : ∀ A :: Type. A -> IO A =
         Λ A. λx. λw. (w, x);
 
-    let bind : ∀ A :: Type1. ∀ B :: Type1. IO A -> (A -> IO B) -> IO B =
+    let bind : ∀ A :: Type. ∀ B :: Type. IO A -> (A -> IO B) -> IO B =
         Λ A. Λ B. λx. λf. λw2.
             let 1 (w1, a) = x w2;
             f a w1;

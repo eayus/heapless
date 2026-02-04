@@ -91,7 +91,7 @@ inferExpr = \case
     a'' <- reifyType va'
     pure (b, T.ELet q a'' t' u')
   S.ELetRec x a t u -> do
-    a' <- checkType a $ S.KStar 2
+    a' <- checkType a S.KStar
     va <- evalType a'
     bindExpr x S.Many va $ do
       t' <- checkExpr t va
@@ -191,26 +191,22 @@ tryCheckExpr t = \case
 
 inferType :: S.Type -> TC (S.Kind, T.Type)
 inferType = \case
-  S.TName x | Just p <- isPrimType x -> pure (S.KStar 1, T.TPrim p)
+  S.TName x | Just p <- isPrimType x -> pure (S.KStar, T.TPrim p)
   S.TName x -> do
     vars <- asks typeVars
     ((_, k), l) <- lookupVar x vars
     pure (k, T.TVar l)
   S.TFunc q a b -> do
-    (oa, a') <- checkTypeStar a
-    (ob, b') <- checkTypeStar b
-    let o = min (max (succ oa) ob) 3
-    pure (S.KStar o, T.TFunc q a' b')
+    a' <- checkTypeStar a
+    b' <- checkTypeStar b
+    pure (S.KStar, T.TFunc q a' b')
   S.TProd q a p b -> do
-    (oa, a') <- checkTypeStar a
-    (ob, b') <- checkTypeStar b
-    let o = case (oa, ob) of
-          (1, 1) -> 1
-          _ -> 3
-    pure (S.KStar o, T.TProd q a' p b')
+    a' <- checkTypeStar a
+    b' <- checkTypeStar b
+    pure (S.KStar, T.TProd q a' p b')
   S.TForall x k a -> do
     (_, a') <- bindType x k $ inferType a
-    pure (S.KStar 3, T.TForall k a')
+    pure (S.KStar, T.TForall k a')
   S.TLam {} -> throwError "Can't infer kind for type level lambda"
   S.TApp a b ->
     inferType a >>= \case
@@ -219,11 +215,11 @@ inferType = \case
         pure (k', T.TApp a' b')
       _ -> throwError "Can't type-level apply a term with a non function kind"
 
-checkTypeStar :: S.Type -> TC (Int, T.Type)
+checkTypeStar :: S.Type -> TC T.Type
 checkTypeStar a =
   inferType a >>= \case
-    (S.KStar o, a') -> pure (o, a')
-    _ -> throwError "Expected type of kind star"
+    (S.KStar, a') -> pure a'
+    _ -> throwError "Expected type of kind 'Type'"
 
 isPrimType :: S.Ident -> Maybe T.PrimType
 isPrimType = \case
@@ -236,16 +232,12 @@ isPrimType = \case
   "Unit" -> Just T.TUnit
   _ -> Nothing
 
-subKind :: S.Kind -> S.Kind -> Bool
-subKind (S.KStar o) (S.KStar o') = o <= o'
-subKind k k' = k == k'
-
 checkType :: S.Type -> S.Kind -> TC T.Type
 checkType (S.TLam x a) (S.KFunc k k') = T.TLam <$> bindType x k (checkType a k')
 checkType (S.TLam {}) _ = throwError "Type level lambda must have function kind"
 checkType a k = do
   (k', a') <- inferType a
-  unless (subKind k' k) $ throwError $ "When checking " ++ show a ++ "\nInferred kind: " ++ show k' ++ "\nKind mismatch between " ++ show k ++ " and " ++ show k'
+  unless (k == k') $ throwError $ "When checking " ++ show a ++ "\nInferred kind: " ++ show k' ++ "\nKind mismatch between " ++ show k ++ " and " ++ show k'
   pure a'
 
 evalType :: T.Type -> TC V.Type

@@ -15,20 +15,20 @@ import UC.Name
 
 main :: IO ()
 main =
-  runExceptT surface >>= \case
+  runExceptT processCore >>= \case
     Left err -> putStrLn err
     Right () -> pure ()
 
 -- Process surface lanugage
-surface :: ExceptT String IO ()
-surface = do
+processSurface :: ExceptT String IO ()
+processSurface = do
   [filepath] <- lift getArgs
   S.typecheckFile filepath
   lift $ putStrLn "OK!"
 
 -- Process core lanugage
-go :: ExceptT String IO ()
-go = do
+processCore :: ExceptT String IO ()
+processCore = do
   [filepath] <- lift getArgs
   expr <- parseFile filepath
 

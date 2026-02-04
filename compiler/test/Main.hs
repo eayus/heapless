@@ -43,10 +43,9 @@ testCorrectFile fp = TestCase $ do
 
 testIncorrectFile :: FilePath -> Test
 testIncorrectFile fp = TestCase $ do
-  -- TODO: Assert that parsing succeeds, but typechecking fails?
-  res <- runExceptT $ do
-    core <- parseFile fp
-    typecheck core
-  case res of
-    Left _ -> pure ()
-    Right _ -> assertFailure $ "Expected example " ++ show fp ++ " to fail, but it actually succeeded"
+  runExceptT (parseFile fp) >>= \case
+    Left err -> assertFailure $ "Parsing " ++ show fp ++ " failed:\n" ++ err
+    Right expr -> do
+      runExceptT (typecheck expr) >>= \case
+        Left _ -> pure ()
+        Right _ -> assertFailure $ "Expected example " ++ show fp ++ " to not typecheck, but it actually succeeded"
