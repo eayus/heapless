@@ -22,7 +22,7 @@ data Ne
   = EVar Int -- Variables as a de Bruijn level.
   | EPrim (Prim Ne) -- A primitive operation (arithmetic, constants, primitive IO, etc.)
   | EApp Type Type Ne Nf -- Function application. A, B, Expr (A -> B), Expr A.
-  | ELetRec Type Nf Ne -- Recursive let binding.
+  | ELetRec Type Ne Nf Ne -- Recursive let binding. First expression is a proof of O2.
   | ELetPair Mult Type Type Ne Ne -- Pair destructuring via let binding (non-recursive).
   | EPair Ne Ne -- Product constructor.
   | EIf Ne Ne Ne -- If expression.

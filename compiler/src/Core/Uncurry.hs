@@ -17,7 +17,7 @@ ucNe = \case
   C.EApp a b t u -> case ucNe t of
     U.EApp as b' f args -> U.EApp (as ++ [ucType a]) b' f (args ++ [ucNf u])
     t' -> U.EApp [ucType a] (ucType b) t' [ucNf u]
-  C.ELetRec a t u -> U.ELetRec () (ucType a) (ucNf t) (ucNe u)
+  C.ELetRec a _ t u -> U.ELetRec () (ucType a) (ucNf t) (ucNe u)
   C.ELetPair p a b t u -> U.ELetPair () () p (ucType a) (ucType b) (ucNe t) (ucNe u)
   C.EPair t u -> U.EPair (ucNe t) (ucNe u)
   C.EIf t u v -> U.EIf (ucNe t) (ucNe u) (ucNe v)

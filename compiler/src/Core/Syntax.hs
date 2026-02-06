@@ -42,7 +42,7 @@ data Expr
   | ETyApp Expr Type -- Type application (instantiation).
   | ETyLet Ident Kind Type Expr -- Type alias.
   | ELet Mult Ident (Maybe Type) Expr Expr -- Let biniding (non-recursive).
-  | ELetRec Ident Type Expr Expr -- Recursive let binding.
+  | ELetRec Ident Type Expr Expr Expr -- Recursive let binding. First expression is a proof of O2.
   | ELetPair Mult (Ident, Ident) (Maybe Type) Expr Expr -- Pair destructuring via let binding (non-recursive).
   | EPair Expr Expr -- Product constructor.
   | EBin BinOp Expr Expr -- Binary expression (+, -, etc.).

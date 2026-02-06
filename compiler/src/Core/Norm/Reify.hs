@@ -30,7 +30,7 @@ reifyExpr len =
         V.EVar l -> N.EVar l
         V.EPrim t -> N.EPrim (fmap re t)
         V.EApp a b t u -> N.EApp (tre a) (tre b) (re t) (reNf u a)
-        V.ELetRec a f g -> N.ELetRec (tre a) (frcNf f a) (frc g)
+        V.ELetRec a p f g -> N.ELetRec (tre a) (re p) (frcNf f a) (frc g)
         V.ELetPair q a b t u -> N.ELetPair q (tre a) (tre b) (re t) (frcPair u)
         V.EPair t u -> N.EPair (re t) (re u)
         V.EIf t u v -> N.EIf (re t) (re u) (re v)

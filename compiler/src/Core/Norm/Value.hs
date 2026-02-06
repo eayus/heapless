@@ -24,7 +24,7 @@ data Expr
   | ETyLam (Type -> Expr) -- Type abstraction (capital lambda).
   | ETyApp Expr Type -- Type application (instantiation).
   | ELet Mult Type Expr (Expr -> Expr) -- Let biniding (non-recursive).
-  | ELetRec Type (Expr -> Expr) (Expr -> Expr) -- Recursive let binding.
+  | ELetRec Type Expr (Expr -> Expr) (Expr -> Expr) -- Recursive let binding. First expression is a proof of O2.
   | ELetPair Mult Type Type Expr ((Expr, Expr) -> Expr) -- Pair destructuring via let binding (non-recursive).
   | EPair Expr Expr -- Product constructor.
   | EIf Expr Expr Expr -- If expression.

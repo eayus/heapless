@@ -90,13 +90,14 @@ inferExpr = \case
     (b, u') <- bindExpr x q va' $ inferExpr u
     a'' <- reifyType va'
     pure (b, T.ELet q a'' t' u')
-  S.ELetRec x a t u -> do
+  S.ELetRec x a p t u -> do
     a' <- checkType a S.KStar
     va <- evalType a'
+    p' <- checkExpr p $ V.TApp (V.TPrim $ T.TOrd 2) va
     bindExpr x S.Many va $ do
       t' <- checkExpr t va
       (b, u') <- inferExpr u
-      pure (b, T.ELetRec a' t' u')
+      pure (b, T.ELetRec a' p' t' u')
   S.ELetPair q (x, y) a t u -> do
     a' <- mapM (fmap snd . inferType) a
     va <- mapM evalType a'

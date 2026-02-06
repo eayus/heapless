@@ -99,10 +99,12 @@ pExpr = makeExprParser pApps ops
       symbol "rec"
       x <- pIdent
       a <- pTypeAno
+      symbol "proof"
+      p <- pExpr
       symbol "="
       t <- pExpr
       symbol ";"
-      ELetRec x a t <$> pExpr
+      ELetRec x a p t <$> pExpr
 
     pLetPair = do
       symbol "let"
@@ -206,7 +208,7 @@ parens = between (symbol "(") (symbol ")")
 -- Utilities for lexing.
 
 reserved :: [String]
-reserved = ["let", "rec", "λ", "Λ", "if", "then", "else", "type"]
+reserved = ["let", "rec", "λ", "Λ", "if", "then", "else", "type", "proof"]
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
