@@ -1,4 +1,4 @@
-let rec go : World -o World =
+let rec go : World -o World proof #funcO1[#primO0[], #liftO0[#primO0[]]] =
     λ w0.
         let 1 w1 = #printInt[0, w0];
         go w1;

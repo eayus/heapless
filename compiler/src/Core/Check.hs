@@ -93,7 +93,7 @@ inferExpr = \case
   S.ELetRec x a p t u -> do
     a' <- checkType a S.KStar
     va <- evalType a'
-    p' <- checkExpr p $ V.TApp (V.TPrim $ T.TOrd 2) va
+    p' <- checkExpr p $ V.TApp (V.TPrim $ T.TOrd 1) va
     bindExpr x S.Many va $ do
       t' <- checkExpr t va
       (b, u') <- inferExpr u
@@ -141,6 +141,9 @@ inferExpr = \case
         t' <- checkExpr t $ V.TPrim T.TWorld
         pure (V.TProd S.One (V.TPrim T.TWorld) S.Many (V.TPrim $ T.TInt T.I64), T.EPrim $ T.PReadInt t')
       _ -> throwError $ "Wrong num args supplied to prim " ++ show x
+    "liftO0" -> throwError "Can't infer type for 'liftO0'"
+    "primO0" -> throwError "Can't infer type for 'primO0'"
+    "funcO1" -> throwError "Can't infer type for 'funcO1'"
     _ -> throwError $ "Unknown prim op named " ++ show x
   S.EIf t u v -> do
     t' <- checkExpr t $ V.TPrim T.TBool
@@ -170,6 +173,38 @@ checkExpr = \case
       u' <- multiplyUses p $ checkExpr u b
       pure $ T.EPair t' u'
     _ -> throwError "Pairs must have product types"
+  S.EPrim "liftO0" ts -> \a -> case ts of 
+    [t] -> case a of
+      V.TApp (V.TPrim (T.TOrd 1)) a -> do
+        t' <- checkExpr t $ V.TApp (V.TPrim (T.TOrd 0)) a
+        pure $ T.EPrim $ T.PLiftO0 t'
+      _ -> throwError "'liftO0' can only be used to prove O1" 
+    _ -> throwError "Wrong number of args passed to 'liftO0'" 
+  S.EPrim "primO0" ts -> \a -> case ts of 
+    [] -> case a of
+      V.TApp (V.TPrim (T.TOrd 0)) (V.TPrim _) -> pure $ T.EPrim T.PPrimO0
+      _ -> throwError "'primO0' can only be used to prove O0 for some primitive type" 
+    _ -> throwError "Wrong number of args passed to 'primO0'" 
+  S.EPrim "prodO0" ts -> \a -> case ts of 
+    [t, u] -> case a of
+      V.TApp (V.TPrim (T.TOrd 0)) (V.TProd _ b _ c) -> do
+        t' <- checkExpr t $ V.TApp (V.TPrim (T.TOrd 0)) b
+        u' <- checkExpr u $ V.TApp (V.TPrim (T.TOrd 0)) c
+        pure $ T.EPrim $ T.PProdO0 t' u'
+      _ -> do
+        a' <- reifyType a
+        throwError $ "'prodO0' can only be used to prove O0 for some pair type\n" ++ "(exepcted " ++ show a' ++ ")"
+    _ -> throwError "Wrong number of args passed to 'prodO0'" 
+  S.EPrim "funcO1" ts -> \a -> case ts of 
+    [t, u] -> case a of
+      V.TApp (V.TPrim (T.TOrd 1)) (V.TFunc _ b c) -> do
+        t' <- checkExpr t $ V.TApp (V.TPrim (T.TOrd 0)) b
+        u' <- checkExpr u $ V.TApp (V.TPrim (T.TOrd 1)) c
+        pure $ T.EPrim $ T.PFuncO1 t' u'
+      _ -> do
+        a' <- reifyType a
+        throwError $ "'funcO1' can only be used to prove O1 for some function type\n" ++ "(exepcted " ++ show a' ++ ")"
+    _ -> throwError "Wrong number of args passed to 'funcO1'" 
   t -> \a -> do
     (b, t') <- inferExpr t
     withExceptT (("When checking the term " ++ show t ++ "\n") ++) $ ensureEqual a b
@@ -192,7 +227,7 @@ tryCheckExpr t = \case
 
 inferType :: S.Type -> TC (S.Kind, T.Type)
 inferType = \case
-  S.TName x | Just p <- isPrimType x -> pure (S.KStar, T.TPrim p)
+  S.TName x | Just (k, p) <- isPrimType x -> pure (k, T.TPrim p)
   S.TName x -> do
     vars <- asks typeVars
     ((_, k), l) <- lookupVar x vars
@@ -214,7 +249,7 @@ inferType = \case
       (S.KFunc k k', a') -> do
         b' <- checkType b k
         pure (k', T.TApp a' b')
-      _ -> throwError "Can't type-level apply a term with a non function kind"
+      k -> throwError $ "Can't type-level apply a term with a non function kind\n(the type " ++ show a ++ " has kind " ++ show k ++ ")"
 
 checkTypeStar :: S.Type -> TC T.Type
 checkTypeStar a =
@@ -222,15 +257,17 @@ checkTypeStar a =
     (S.KStar, a') -> pure a'
     _ -> throwError "Expected type of kind 'Type'"
 
-isPrimType :: S.Ident -> Maybe T.PrimType
+isPrimType :: S.Ident -> Maybe (S.Kind, T.PrimType)
 isPrimType = \case
-  "World" -> Just T.TWorld
-  "Int" -> Just $ T.TInt T.I64
-  "Int64" -> Just $ T.TInt T.I64
-  "Int32" -> Just $ T.TInt T.I32
-  "Int16" -> Just $ T.TInt T.I16
-  "Bool" -> Just T.TBool
-  "Unit" -> Just T.TUnit
+  "World" -> Just (S.KStar, T.TWorld)
+  "O0" -> Just (S.KFunc S.KStar S.KStar, T.TOrd 0)
+  "O1" -> Just (S.KFunc S.KStar S.KStar, T.TOrd 1)
+  "Int" -> Just (S.KStar, T.TInt T.I64)
+  "Int64" -> Just (S.KStar, T.TInt T.I64)
+  "Int32" -> Just (S.KStar, T.TInt T.I32)
+  "Int16" -> Just (S.KStar, T.TInt T.I16)
+  "Bool" -> Just (S.KStar, T.TBool)
+  "Unit" -> Just (S.KStar, T.TUnit)
   _ -> Nothing
 
 checkType :: S.Type -> S.Kind -> TC T.Type

@@ -1,7 +1,7 @@
 λ w0.
     let foo : (Int -> Int) -> Int -> Int -> Int =
         λ f.
-            let rec go : Int -> Int -> Int =
+            let rec go : Int -> Int -> Int proof #funcO1[#primO0[], #funcO1[#primO0[], #liftO0[#primO0[]]]] =
                 λ n. λ x.
                     if n == 0 then x else f (go (n - 1) x);
             go;

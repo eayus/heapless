@@ -37,6 +37,10 @@ data Prim e
   | PEql e e
   | PReadInt e
   | PPrintInt e e
+  | PLiftO0 e
+  | PPrimO0
+  | PProdO0 e e
+  | PFuncO1 e e
   | PBool Bool
   | PInt Integer
   | PUnit

@@ -10,12 +10,12 @@
 
     let replicateM :
         ∀ M :: Type -> Type. ∀ A :: Type.
-        Monad M -> Int -> M A -> M Unit =
+        O1 (M Unit) -> Monad M -> Int -> M A -> M Unit =
 
         Λ M. Λ A.
-        λ monad. λ n. λ f.
+        λ o1. λ monad. λ n. λ f.
             let (pure, bind) : Monad M = monad;
-            let rec go : Int -> M Unit =
+            let rec go : Int -> M Unit proof #funcO1[#primO0[], o1] =
                 λ m. if m == 0
                     then pure @Unit unit
                     else bind @A @Unit f (λ a. go (m - 1));
@@ -39,7 +39,9 @@
 
     let ioMonad : Monad IO = (pure, bind);
 
+    let ioUnitO1 : O1 (IO Unit) = #funcO1[#primO0[], #liftO0[#prodO0[#primO0[], #primO0[]]]];
+
     let main : IO Unit =
-        replicateM @IO @Unit ioMonad 10 (printInt 2);
+        replicateM @IO @Unit ioUnitO1 ioMonad 10 (printInt 2);
 
     run main w0

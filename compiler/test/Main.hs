@@ -5,6 +5,7 @@ import Core.Check
 import Core.Norm.Reify
 import Core.Parse
 import Core.Uncurry
+import Data.List
 import System.Directory
 import Test.HUnit
 import UC.LambdaLift
@@ -13,12 +14,12 @@ import UC.Name
 main :: IO ()
 main = do
   let correctExampleDir = "../examples/correct/"
-  correctFilenames <- listDirectory correctExampleDir
+  correctFilenames <- filter (".core" `isSuffixOf`) <$> listDirectory correctExampleDir
   let correctFilepaths = map (correctExampleDir ++) correctFilenames
   let correctTests = TestList $ map testCorrectFile correctFilepaths
 
   let incorrectExampleDir = "../examples/incorrect/"
-  incorrectFilenames <- listDirectory incorrectExampleDir
+  incorrectFilenames <- filter (".core" `isSuffixOf`) <$> listDirectory incorrectExampleDir
   let incorrectFilepaths = map (incorrectExampleDir ++) incorrectFilenames
   let incorrectTests = TestList $ map testIncorrectFile incorrectFilepaths
 
@@ -30,7 +31,7 @@ testCorrectFile fp = TestCase $ do
     core <- parseFile fp
     typecheck core
   case res of
-    Left err -> assertFailure err
+    Left err -> assertFailure $ "While typechecking " ++ show fp ++ "\n" ++ err
     Right core -> do
       let pe = partialEval core
       let uc = ucNf pe

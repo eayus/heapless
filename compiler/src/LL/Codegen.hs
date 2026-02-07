@@ -24,6 +24,10 @@ cg = \case
     PEql t u -> t ++ "==" ++ u
     PReadInt w -> "read_int(" ++ w ++ ")"
     PPrintInt t w -> "print_int(" ++ t ++ ", " ++ w ++ ")"
+    PLiftO0 _ -> "()"
+    PPrimO0 -> "()"
+    PProdO0 _ _ -> "()"
+    PFuncO1 _ _ -> "()"
     PBool b -> if b then "true" else "false"
     PInt n -> show n
     PUnit -> "()"
