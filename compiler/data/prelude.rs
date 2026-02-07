@@ -1,6 +1,7 @@
 #![allow(unused_parens)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(unconditional_recursion)]
 #![no_std]
 #![no_main]
 

@@ -1,15 +1,12 @@
 module Main where
 
+import Compile
 import Control.Monad.Except
 import Core.Check
-import Core.Norm.Reify
 import Core.Parse
-import Core.Uncurry
 import Data.List
 import System.Directory
 import Test.HUnit
-import UC.LambdaLift
-import UC.Name
 
 main :: IO ()
 main = do
@@ -27,20 +24,9 @@ main = do
 
 testCorrectFile :: FilePath -> Test
 testCorrectFile fp = TestCase $ do
-  res <- runExceptT $ do
-    core <- parseFile fp
-    typecheck core
-  case res of
+  runExceptT (compileCore False fp) >>= \case
     Left err -> assertFailure $ "While typechecking " ++ show fp ++ "\n" ++ err
-    Right core -> do
-      let pe = partialEval core
-      let uc = ucNf pe
-      let uc' = nameMain uc
-      let ll = llMain uc'
-      -- Writing the value to a file is an easy way to force its evaluation.
-      -- This is necessary because evaluation could technically use 'undefined',
-      -- and we want the test suite to check for that.
-      writeFile "/dev/null" $ show ll
+    Right _ -> pure ()
 
 testIncorrectFile :: FilePath -> Test
 testIncorrectFile fp = TestCase $ do

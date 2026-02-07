@@ -1,5 +1,6 @@
 module Compile (Compile, compileCore) where
 
+import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans.Class
 import Core.Check
@@ -9,38 +10,45 @@ import Core.Uncurry
 import LL.Codegen
 import System.Exit
 import System.Process
+import Text.Pretty.Simple
 import UC.LambdaLift
 import UC.Name
 
 type Compile = ExceptT String IO
 
-compileCore :: FilePath -> Compile ()
-compileCore filepath = do
+compileCore :: Bool -> FilePath -> Compile ()
+compileCore dbg filepath = do
   expr <- parseFile filepath
 
   core <- typecheck expr
-  -- lift $ putStrLn "\ncore"
-  -- lift $ print core
+  when dbg do
+    lift $ putStrLn "\ncore"
+    lift $ print core
 
   let core' = partialEval core
-  -- lift $ putStrLn "\ncore'"
-  -- lift $ pPrint core'
+  when dbg do
+    lift $ putStrLn "\ncore'"
+    lift $ pPrint core'
 
   let uc = ucNf core'
-  -- lift $ putStrLn "\nuc"
-  -- lift $ pPrint uc
+  when dbg do
+    lift $ putStrLn "\nuc"
+    lift $ pPrint uc
 
   let uc' = nameMain uc
-  -- lift $ putStrLn "\nuc'"
-  -- lift $ pPrint uc'
+  when dbg do
+    lift $ putStrLn "\nuc'"
+    lift $ pPrint uc'
 
   let ll = llMain uc'
-  -- lift $ putStrLn "\nll"
-  -- lift $ pPrint ll
+  when dbg do
+    lift $ putStrLn "\nll"
+    lift $ pPrint ll
 
   rust <- lift $ cgProg ll
-  -- lift $ putStrLn rust
-  -- lift $ putStrLn "\n\nOK :)"
+  when dbg do
+    lift $ putStrLn rust
+    lift $ putStrLn "\n\nOK :)"
 
   cmd "mkdir -p .build"
   lift $ writeFile ".build/main.rs" rust

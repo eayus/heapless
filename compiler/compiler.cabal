@@ -6,6 +6,7 @@ common config
     ghc-options: -W
     default-language: GHC2024
     default-extensions:
+        BlockArguments,
         DuplicateRecordFields,
         LambdaCase,
         MultiWayIf,
@@ -21,6 +22,7 @@ library
     import: config
     hs-source-dirs: src
     exposed-modules:
+        Compile,
         Core.Norm.Eval,
         Core.Norm.Reify,
         Core.Norm.Term,
@@ -45,6 +47,7 @@ library
     build-depends:
         megaparsec,
         parser-combinators,
+        pretty-simple,
         unordered-containers,
 
 executable compiler

@@ -10,7 +10,7 @@ cgProg (Prog fs t) = do
   prelude <- readFile "data/prelude.rs"
   pure $ prelude ++ concatMap cgFunc fs ++ main
   where
-    main = "#[no_mangle] pub fn rust_main()" ++ braces ("let a = ();" ++ cg t)
+    main = "#[no_mangle] pub fn rust_main()" ++ braces ("let a0 = ();" ++ cg t) -- TODO: Hardcoding a0 here is hack..
 
 cgFunc :: Func -> String -- TODO return type
 cgFunc (LetRec x ps b t) = "fn " ++ x ++ parens (intercalate "," $ map (\(y, a) -> y ++ ":" ++ cgType a) ps) ++ "->" ++ cgType b ++ braces (cg t)
