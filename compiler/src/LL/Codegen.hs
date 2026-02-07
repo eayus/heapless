@@ -42,6 +42,7 @@ cgType = \case
     TBool -> "bool"
     TWorld -> "()"
     TUnit -> "()"
+    TOrd _ -> "()"
   TFunc _ _ -> undefined
   TProd _ a _ b -> parens $ cgType a ++ "," ++ cgType b
 

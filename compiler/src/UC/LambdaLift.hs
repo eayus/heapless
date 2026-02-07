@@ -41,7 +41,7 @@ ll = \case
       _ -> undefined
   U.ELetRec x a t u -> case t of
     U.ELam as body -> do
-      let ret = case a of U.TFunc _ ret -> ret
+      let ret = retType a
       captured <- M.toList . M.delete x <$> local ((x, a) :) (freesNf t)
       mapReaderT (local ((x, map fst captured) :)) $ local ((x, a) :) $ do
         body' <- ll body
@@ -52,8 +52,13 @@ ll = \case
   U.EPair t u -> liftA2 L.EPair (ll t) (ll u)
   U.EIf t u v -> liftA3 L.EIf (ll t) (ll u) (ll v)
 
+-- TODO: This code is a little duplicated in UC.Name too.
 fresh :: Lifter U.Name
-fresh = do
-  xs <- get
-  put (tail xs)
-  pure (head xs)
+fresh = get >>= \case
+  x : xs -> x <$ put xs
+  [] -> error "ran out of names!"
+
+retType :: U.Type -> U.Type
+retType = \case
+  U.TFunc _ ret -> ret
+  _ -> error "expected function type"

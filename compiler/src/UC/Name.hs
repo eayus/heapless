@@ -12,7 +12,8 @@ type Namer = StateT [Name] (Reader [Name])
 nameMain :: Nf () Int -> Nf Name Name
 nameMain t = runReader (evalStateT (nameNf t) supply) []
   where
-    supply = map singleton ['a' ..]
+    supply = concatMap alpha [0 ..]
+    alpha n = map ((++ show n) . singleton) ['a' .. 'z']
 
 nameNf :: Nf () Int -> Namer (Nf Name Name)
 nameNf = \case
@@ -43,7 +44,6 @@ nameNe = \case
   EIf t u v -> liftA3 EIf (nameNe t) (nameNe u) (nameNe v)
 
 fresh :: Namer Name
-fresh = do
-  xs <- get
-  put (tail xs)
-  pure (head xs)
+fresh = get >>= \case
+  x : xs -> x <$ put xs
+  [] -> error "ran out of names!"
